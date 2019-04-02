@@ -904,3 +904,191 @@ function Add-NsxTIpSetAddress{
     
     end{$response}
 }
+
+function Get-NsxTMacSet{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev IPset object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$MacSetObject,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/mac-sets"
+
+        if ($MacSetObject) {
+            if ($MacSetObject.resource_type -eq "MACset") {
+                $uri += "/$($MacSetObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: MACset"
+            }
+        }
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+       
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_mac_addresses = $resource.mac_addresses
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id                    
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_mac_addresses = $response.mac_addresses
+                resource_type = $response.resource_type
+                resource_id = $response.id    
+                }
+        }
+    }
+    
+    end{$returnarray}
+}
+
+function Remove-NsxTMacSet{
+
+    param (
+        [Parameter (Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev IPset object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$MacSetObject,
+        [Parameter (Mandatory=$False)]
+            [switch]$confirm=$true,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/mac-sets"
+
+        if ($MacSetObject) {
+            if ($MacSetObject.resource_type -eq "MACset") {
+                $uri += "/$($MacSetObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: MACset"
+            }
+        }
+
+        if ( $confirm ) {
+            $message  = "NSX-T MACSet object removal is permanent."
+            $question = "Proceed with removal of NSX-T MACSET OBJECT $($MacSetObject.resource_display_name)?"
+
+            $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
+
+            $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
+        }
+        else { $decision = 0 }
+        if ($decision -eq 0) {
+
+            try {
+                Write-Progress -activity "Remove NSX-T IPSet Object $($MacSetObject.resource_display_name)"
+                $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
+                Write-Progress -activity "Remove NSX-T IPSet Object $($MacSetObject.resource_display_name)" -completed
+            }
+            catch {
+                throw "Unable to query from $($connection.Hostname)."
+            }
+        }
+    }
+
+    end{}
+}
+
+function New-NsxTMacSet{
+
+    param (
+        [Parameter ( Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            [string]$Displayname,
+        [Parameter ( Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            $MacAddresses,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/mac-sets"
+
+        #Check if MacAddress is correctly formatted and add to IpBody
+        $patterns = @(
+            '^([0-9a-f]{2}:){5}([0-9a-f]{2})$'
+            '^([0-9a-f]{2}-){5}([0-9a-f]{2})$'
+            '^([0-9a-f]{4}.){2}([0-9a-f]{4})$'
+            '^([0-9a-f]{12})$')
+        
+          $MacBody = """mac_addresses"" : ["
+        foreach ($MacAddress in $MacAddresses) {
+            if ($MacAddress -match ($patterns -join '|')) {
+            $MacBody += " ""$($MacAddress)"","
+            } else {
+                Throw "$($MacAddress) is NOT a MacAdress"
+            }
+        }
+        $MacBody = $MacBody.TrimEnd(",") + " ]"
+
+        #build JSON body for REST request
+        $body = "{ ""display_name"" : ""$($Displayname) "", $($MacBody)}"
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $body
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        #Create response for return value
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_mac_addresses = $resource.mac_addresses
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id                    
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_mac_addresses = $response.mac_addresses
+                resource_type = $response.resource_type
+                resource_id = $response.id    
+                }
+        }
+    }
+    
+    end{$returnarray}
+}
