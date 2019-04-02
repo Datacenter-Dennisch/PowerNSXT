@@ -127,20 +127,20 @@ function Invoke-NsxTRestMethod {
         }
     }
     $FullURI = "$($protocol)://$($server):$($Port)$($URI)"
-    write-debug "$($MyInvocation.MyCommand.Name) : Method: $method, URI: $FullURI, Body: `n$($body | Format-Xml)"
+    write-debug "$($MyInvocation.MyCommand.Name) : Method: $method, URI: $FullURI, Body: `n$($body )"
 
     if ( $pscmdlet.ParameterSetName -eq "ConnectionObj" ) {
         if ( $connection.DebugLogging ) {
-            Add-Content -Path $Connection.DebugLogfile -Value "$(Get-Date -format s)  REST Call to NSX-T Manager via invoke-restmethod : Method: $method, URI: $FullURI, Body: `n$($body | Format-Xml)"
+            Add-Content -Path $Connection.DebugLogfile -Value "$(Get-Date -format s)  REST Call to NSX-T Manager via invoke-restmethod : Method: $method, URI: $FullURI, Body: `n$($body)"
         }
     }
 
     #do rest call
     try {
         if ( $PsBoundParameters.ContainsKey('Body')) {
-            $response = invoke-restmethod -method $method -headers $headerDictionary -ContentType "application/xml" -uri $FullURI -body $body -TimeoutSec $Timeout -SkipCertificateCheck
+            $response = invoke-restmethod -method $method -headers $headerDictionary -ContentType "application/json" -uri $FullURI -body $body -TimeoutSec $Timeout -SkipCertificateCheck
         } else {
-            $response = invoke-restmethod -method $method -headers $headerDictionary -ContentType "application/xml" -uri $FullURI -TimeoutSec $Timeout -SkipCertificateCheck
+            $response = invoke-restmethod -method $method -headers $headerDictionary -ContentType "application/json" -uri $FullURI -TimeoutSec $Timeout -SkipCertificateCheck
         }
     }
     catch {
@@ -172,11 +172,13 @@ function Invoke-NsxTRestMethod {
 
 
     }
-    switch ( $response ) {
-        { $_ -is [xml] } { $FormattedResponse = "`n$($response.outerxml | Format-Xml)" }
-        { $_ -is [System.String] } { $FormattedResponse = $response }
-        default { $formattedResponse = "Response type unknown" }
-    }
+    #switch ( $response ) {
+    ##    { $_ -is [xml] } { $FormattedResponse = "`n$($response.outerxml | Format-Xml)" }
+    #    { $_ -is [System.String] } { $FormattedResponse = $response }
+    #    { $_ -is [json] } { $FormattedResponse = $response }
+    #    default { $formattedResponse = "Response type unknown" }
+    #}
+    $FormattedResponse = $response 
 
     write-debug "$($MyInvocation.MyCommand.Name) : Response: $FormattedResponse"
     if ( $pscmdlet.ParameterSetName -eq "ConnectionObj" ) {
@@ -691,7 +693,7 @@ function New-NsxTIpSet{
             [string]$Displayname,
         [Parameter ( Mandatory=$true)]
             [ValidateNotNullOrEmpty()]
-            [string]$IpElements
+            $IpElements,
         [Parameter (Mandatory=$False)]
             #PowerNSXT Connection object.
             [ValidateNotNullOrEmpty()]
@@ -704,14 +706,41 @@ function New-NsxTIpSet{
 
         $uri = "/api/v1/ip-sets"
 
+        #Check if IPelement is correctly formatted and add to IpBody
 
+        $IPbody = """ip_addresses"" : ["
+        foreach ($IpElement in $IpElements) {
+            if ($IpElement -match "/") {
+                if ((([system.net.ipaddress]$IpElement.Split('/')[0]).AddressFamily -match "InterNetwork") -and (1..32 -contains [int]$IpElement.Split('/')[1])) {
+                    $IPbody += " ""$($IpElement)"","
+                } else {
+                    Throw "$($Ipelement) is in wrong Cidr notation"
+                }
+            } elseif ($IpElement -match "-") {
+                [system.net.ipaddress]$IpAddressBegin, [system.net.ipaddress]$IpAddressEnd = $Ipelement.split('-') 
+                $IPbody += " ""$($IpElement)"","
+            } elseif (($IpElement -notmatch "/") -or ($IpElement -notmatch "-")) {
+                if ([system.net.ipaddress]$IpElement) {
+                $IPbody += " ""$($IpElement)"","
+                } else {
+                    Throw "$($Ipelement) is NOT a IpAdress"
+                }
+            }
+        }
+        $IPbody = $IPbody.TrimEnd(",") + " ]"
+
+        #build JSON body for REST request
+        $body = "{ ""display_name"" : ""$($Displayname) "", $($IPbody)}"
+
+        #Execute REST API Call
         try {
-            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $body
         }
         catch {
             throw "Unable to query from $($connection.Hostname)."
         }
-       
+        
+        #Create response for return value
         if ($response.results) {
             $returnarray = @()
             foreach ($resource in $response.results) {
@@ -736,5 +765,93 @@ function New-NsxTIpSet{
     end{$returnarray}
 }
 
-$resourceobject = Get-NsxTIpSet 
-Get-NsxTIpSet -IpSetObject $resourceobject
+function Add-NsxTIpSetAddress{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev IPset object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$IpSetObject,
+        [Parameter ( Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            $IpElements,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+        #check if object is from resource_type IPSet
+
+
+        $uri = "/api/v1/ip-sets"
+
+        if ($IpSetObject) {
+            if ($IpSetObject.resource_type -eq "IPSet") {
+                $uri += "/$($IpSetObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: IPset"
+            }
+        }
+        $uri += "?action=add_ip"
+
+        #Check if IPelement is correctly formatted and add to IpBody
+
+        $IPbody = "{""ip_addresses"" : ["
+        foreach ($IpElement in $IpElements) {
+            if ($IpElement -match "/") {
+                if ((([system.net.ipaddress]$IpElement.Split('/')[0]).AddressFamily -match "InterNetwork") -and (1..32 -contains [int]$IpElement.Split('/')[1])) {
+                    $IPbody += " ""$($IpElement)"","
+                } else {
+                    Throw "$($Ipelement) is in wrong Cidr notation"
+                }
+            } elseif ($IpElement -match "-") {
+                [system.net.ipaddress]$IpAddressBegin, [system.net.ipaddress]$IpAddressEnd = $Ipelement.split('-') 
+                $IPbody += " ""$($IpElement)"","
+            } elseif (($IpElement -notmatch "/") -or ($IpElement -notmatch "-")) {
+                if ([system.net.ipaddress]$IpElement) {
+                $IPbody += " ""$($IpElement)"","
+                } else {
+                    Throw "$($Ipelement) is NOT a IpAdress"
+                }
+            }
+        }
+        $IPbody = $IPbody.TrimEnd(",") + " ]}"
+
+
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $IPbody
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        #Create response for return value
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_ip_addresses = $resource.ip_addresses
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id                    
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_ip_addresses = $response.ip_addresses
+                resource_type = $response.resource_type
+                resource_id = $response.id    
+                }
+        }
+    }
+    
+    end{$returnarray}
+}
