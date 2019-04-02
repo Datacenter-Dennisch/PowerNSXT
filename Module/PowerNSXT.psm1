@@ -765,6 +765,76 @@ function New-NsxTIpSet{
     end{$returnarray}
 }
 
+function Remove-NsxTIpSetAddress{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev IPset object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$IpSetObject,
+        [Parameter ( Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            [string]$IpElement,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+        #check if object is from resource_type IPSet
+
+
+        $uri = "/api/v1/ip-sets"
+
+        if ($IpSetObject) {
+            if ($IpSetObject.resource_type -eq "IPSet") {
+                $uri += "/$($IpSetObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: IPset"
+            }
+        }
+        $uri += "?action=remove_ip"
+
+        #Check if IPelement is correctly formatted and add to IpBody
+        $IPbody = "{""ip_address"" :"
+        
+            if ($IpElement -match "/") {
+                if ((([system.net.ipaddress]$IpElement.Split('/')[0]).AddressFamily -match "InterNetwork") -and (1..32 -contains [int]$IpElement.Split('/')[1])) {
+                    $IPbody += " ""$($IpElement)"","
+                } else {
+                    Throw "$($Ipelement) is in wrong Cidr notation"
+                }
+            } elseif ($IpElement -match "-") {
+                [system.net.ipaddress]$IpAddressBegin, [system.net.ipaddress]$IpAddressEnd = $Ipelement.split('-') 
+                $IPbody += " ""$($IpElement)"","
+            } elseif (($IpElement -notmatch "/") -or ($IpElement -notmatch "-")) {
+                if ([system.net.ipaddress]$IpElement) {
+                $IPbody += " ""$($IpElement)"","
+                } else {
+                    Throw "$($Ipelement) is NOT a IpAdress"
+                }
+            }
+        
+        $IPbody = $IPbody.TrimEnd(",") + "}"
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $IPbody
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        $response = Get-NsxTIpSet -IpSetObject $IpSetObject
+        
+    }
+    
+    end{$response}
+}
+
 function Add-NsxTIpSetAddress{
 
     param (
@@ -774,7 +844,7 @@ function Add-NsxTIpSetAddress{
             [PSCustomObject]$IpSetObject,
         [Parameter ( Mandatory=$true)]
             [ValidateNotNullOrEmpty()]
-            $IpElements,
+            [string]$IpElement,
         [Parameter (Mandatory=$False)]
             #PowerNSXT Connection object.
             [ValidateNotNullOrEmpty()]
@@ -799,9 +869,8 @@ function Add-NsxTIpSetAddress{
         $uri += "?action=add_ip"
 
         #Check if IPelement is correctly formatted and add to IpBody
-
-        $IPbody = "{""ip_addresses"" : ["
-        foreach ($IpElement in $IpElements) {
+        $IPbody = "{""ip_address"" :"
+        
             if ($IpElement -match "/") {
                 if ((([system.net.ipaddress]$IpElement.Split('/')[0]).AddressFamily -match "InterNetwork") -and (1..32 -contains [int]$IpElement.Split('/')[1])) {
                     $IPbody += " ""$($IpElement)"","
@@ -818,10 +887,8 @@ function Add-NsxTIpSetAddress{
                     Throw "$($Ipelement) is NOT a IpAdress"
                 }
             }
-        }
-        $IPbody = $IPbody.TrimEnd(",") + " ]}"
-
-
+        
+        $IPbody = $IPbody.TrimEnd(",") + "}"
 
         #Execute REST API Call
         try {
@@ -831,27 +898,9 @@ function Add-NsxTIpSetAddress{
             throw "Unable to query from $($connection.Hostname)."
         }
         
-        #Create response for return value
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_ip_addresses = $resource.ip_addresses
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_ip_addresses = $response.ip_addresses
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
-        }
+        $response = Get-NsxTIpSet -IpSetObject $IpSetObject
+        
     }
     
-    end{$returnarray}
+    end{$response}
 }
