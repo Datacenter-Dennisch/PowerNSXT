@@ -1,4 +1,4 @@
-### This PowerNSXT module is written by Dennis Lefeber (Dennis-X)
+### This PowerNSXT module is written by Dennis Lefeber (Dennis-X) - ITQ
 
 function Invoke-NsxTRestMethod {
 
@@ -641,7 +641,7 @@ function Remove-NsxTIpSet{
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$IpSetObject,
         [Parameter (Mandatory=$False)]
-            [switch]$confirm=$true,
+            [switch]$Confirm=$true,
         [Parameter (Mandatory=$False)]
             #PowerNSXT Connection object.
             [ValidateNotNullOrEmpty()]
@@ -662,7 +662,7 @@ function Remove-NsxTIpSet{
             }
         }
         
-        if ( $confirm ) {
+        if ( $Confirm ) {
             $message  = "NSX-T IPSet object removal is permanent."
             $question = "Proceed with removal of NSX-T IPSET OBJECT $($IpSetObject.resource_display_name)?"
 
@@ -979,7 +979,7 @@ function Remove-NsxTMacSet{
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$MacSetObject,
         [Parameter (Mandatory=$False)]
-            [switch]$confirm=$true,
+            [switch]$Confirm=$true,
         [Parameter (Mandatory=$False)]
             #PowerNSXT Connection object.
             [ValidateNotNullOrEmpty()]
@@ -1000,7 +1000,7 @@ function Remove-NsxTMacSet{
             }
         }
 
-        if ( $confirm ) {
+        if ( $Confirm ) {
             $message  = "NSX-T MACSet object removal is permanent."
             $question = "Proceed with removal of NSX-T MACSET OBJECT $($MacSetObject.resource_display_name)?"
 
@@ -1350,7 +1350,7 @@ function Remove-NsxTNSGroup{
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$NSGroupObject,
         [Parameter (Mandatory=$False)]
-            [switch]$confirm=$true,
+            [switch]$Confirm=$true,
         [Parameter (Mandatory=$False)]
             #PowerNSXT Connection object.
             [ValidateNotNullOrEmpty()]
@@ -1371,7 +1371,7 @@ function Remove-NsxTNSGroup{
             }
         }
 
-        if ( $confirm ) {
+        if ( $Confirm ) {
             $message  = "NSX-T NSGroup object removal is permanent."
             $question = "Proceed with removal of NSX-T NSGroup OBJECT $($NSGroupObject.resource_display_name)?"
 
@@ -1602,7 +1602,7 @@ function Get-NsxTNSService{
         [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
             #resource object to retriev Service object from
             [ValidateNotNullOrEmpty()]
-            [PSCustomObject]$ServiceObject,        
+            [PSCustomObject]$NSServiceObject,        
         [Parameter ( Mandatory=$false)]
             [ValidateNotNullOrEmpty()]
             [String]$Displayname,
@@ -1618,9 +1618,9 @@ function Get-NsxTNSService{
 
         $uri = "/api/v1/ns-services"
 
-        if ($ServiceObject) {
-            if ($ServiceObject.resource_type -eq "NSService") {
-                $uri += "/$($ServiceObject.resource_id)"
+        if ($NSServiceObject) {
+            if ($NSServiceObject.resource_type -eq "NSService") {
+                $uri += "/$($NSServiceObject.resource_id)"
             } else {
                 ThrowError "Input object is not from resource_type: NSService"
             }
@@ -1665,9 +1665,9 @@ function Remove-NsxTNSService{
         [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
             #resource object to retriev Service object from
             [ValidateNotNullOrEmpty()]
-            [PSCustomObject]$ServiceObject, 
+            [PSCustomObject]$NSServiceObject, 
         [Parameter (Mandatory=$False)]
-            [switch]$confirm=$true,
+            [switch]$Confirm=$true,
         [Parameter (Mandatory=$False)]
             #PowerNSXT Connection object.
             [ValidateNotNullOrEmpty()]
@@ -1680,17 +1680,17 @@ function Remove-NsxTNSService{
 
         $uri = "/api/v1/ns-services"
 
-        if ($ServiceObject) {
-            if ($ServiceObject.resource_type -eq "NSService") {
-                $uri += "/$($ServiceObject.resource_id)"
+        if ($NSServiceObject) {
+            if ($NSServiceObject.resource_type -eq "NSService") {
+                $uri += "/$($NSServiceObject.resource_id)"
             } else {
                 ThrowError -ExceptionMessage "Input object is not from resource_type: NSService"
             }
         }
 
-        if ( $confirm ) {
+        if ( $Confirm ) {
             $message  = "NSX-T NSService object removal is permanent."
-            $question = "Proceed with removal of NSX-T NSService OBJECT $($ServiceObject.resource_display_name)?"
+            $question = "Proceed with removal of NSX-T NSService OBJECT $($NSServiceObject.resource_display_name)?"
 
             $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
             $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
@@ -1702,9 +1702,9 @@ function Remove-NsxTNSService{
         if ($decision -eq 0) {
 
             try {
-                Write-Progress -activity "Remove NSX-T NSService Object $($ServiceObject.resource_display_name)"
+                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceObject.resource_display_name)"
                 $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
-                Write-Progress -activity "Remove NSX-T NSService Object $($ServiceObject.resource_display_name)" -completed
+                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceObject.resource_display_name)" -completed
             }
             catch {
                 throw "Unable to query from $($connection.Hostname)."
@@ -1767,6 +1767,187 @@ function New-NsxTNSService{
             }
         }
         $body += "}"
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $body
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        #Create response for return value
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                foreach ($resourceelement in $resource.nsservice_element) {
+
+                }
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id                    
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_type = $response.resource_type
+                resource_id = $response.id    
+                }
+        }
+    }
+    
+    end{$returnarray}
+}
+
+function Get-NsxTNSServiceGroup{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev ServiceGroup object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSServiceGroupObject,        
+        [Parameter ( Mandatory=$false)]
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-service-groups"
+
+        if ($NSServiceGroupObject) {
+                if ($NSServiceGroupObject.resource_type -eq "NSServiceGroup") {
+                $uri += "/$($NSServiceGroupObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: NSServiceGroup"
+            }
+        }
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+       
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                foreach ($resourceelement in $resource.nsservice_element) {
+
+                }
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id                    
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_type = $response.resource_type
+                resource_id = $response.id    
+                }
+        }
+        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
+    }
+    
+    end{$returnarray}
+}
+
+function Remove-NsxTNSServiceGroup{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev Service Group object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSServiceGroupObject, 
+        [Parameter (Mandatory=$False)]
+            [switch]$Confirm=$true,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-service-groups"
+
+        if ($NSServiceGroupObject) {
+            if ($NSServiceGroupObject.resource_type -eq "NSServiceGroup") {
+                $uri += "/$($NSServiceGroupObject.resource_id)"
+            } else {
+                ThrowError -ExceptionMessage "Input object is not from resource_type: NSServiceGroup"
+            }
+        }
+
+        if ( $Confirm ) {
+            $message  = "NSX-T NSServiceGroup object removal is permanent."
+            $question = "Proceed with removal of NSX-T NSServiceGroup OBJECT $($NSServiceGroupObject.resource_display_name)?"
+
+            $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
+
+            $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
+        }
+        else { $decision = 0 }
+        if ($decision -eq 0) {
+
+            try {
+                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceGroupObject.resource_display_name)"
+                $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
+                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceGroupObject.resource_display_name)" -completed
+            }
+            catch {
+                throw "Unable to query from $($connection.Hostname)."
+            }
+        }
+    }
+
+    end{}
+}
+
+function New-NsxTNSServiceGroup{
+
+    param (
+        [Parameter ( Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            [string]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection,
+        [Parameter (Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSServiceObjects   
+        )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-service-groups"
+        
+        #build JSON body for REST request
+        $body = '{ "display_name" : "'+$Displayname+'", "members":['
+            foreach ($NSServiceObject in $NSServiceObjects) {
+                $body += '{"target_id": "'+$NSServiceObject.resource_id+'", "target_type": "NSService"},'
+            }
+        $body = $body.trimend(',') + "]}"
         write-host $body
 
         #Execute REST API Call
