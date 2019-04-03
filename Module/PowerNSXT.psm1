@@ -1,4 +1,4 @@
-
+### This PowerNSXT module is written by Dennis Lefeber (Dennis-X)
 
 function Invoke-NsxTRestMethod {
 
@@ -578,6 +578,10 @@ function Get-NsxTIpSet{
             #resource object to retriev IPset object from
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$IpSetObject,
+        [Parameter ( Mandatory=$false)]
+            #resource object to retriev NSGroup object from
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname, 
         [Parameter (Mandatory=$False)]
             #PowerNSXT Connection object.
             [ValidateNotNullOrEmpty()]
@@ -624,6 +628,8 @@ function Get-NsxTIpSet{
                 resource_id = $response.id    
                 }
         }
+        $returnarray = $returnarray | ? {$_.resource_display_name -match $Displayname}
+
     }
     
     end{$returnarray}
@@ -632,7 +638,7 @@ function Get-NsxTIpSet{
 function Remove-NsxTIpSet{
 
     param (
-        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+        [Parameter ( Mandatory=$true,ValueFromPipeline=$true)]
             #resource object to retriev IPset object from
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$IpSetObject,
@@ -768,7 +774,7 @@ function New-NsxTIpSet{
 function Remove-NsxTIpSetAddress{
 
     param (
-        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+        [Parameter ( Mandatory=$true,ValueFromPipeline=$true)]
             #resource object to retriev IPset object from
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$IpSetObject,
@@ -838,7 +844,7 @@ function Remove-NsxTIpSetAddress{
 function Add-NsxTIpSetAddress{
 
     param (
-        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+        [Parameter ( Mandatory=$true,ValueFromPipeline=$true)]
             #resource object to retriev IPset object from
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$IpSetObject,
@@ -909,9 +915,13 @@ function Get-NsxTMacSet{
 
     param (
         [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
-            #resource object to retriev IPset object from
+            #resource object to retriev MacSet object from
             [ValidateNotNullOrEmpty()]
-            [PSCustomObject]$MacSetObject,
+            [PSCustomObject]$MacSetObject,        
+        [Parameter ( Mandatory=$false)]
+            #resource object to retriev NSGroup object from
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname,
         [Parameter (Mandatory=$False)]
             #PowerNSXT Connection object.
             [ValidateNotNullOrEmpty()]
@@ -958,6 +968,7 @@ function Get-NsxTMacSet{
                 resource_id = $response.id    
                 }
         }
+        $returnarray = $returnarray | ? {$_.resource_display_name -match $Displayname}
     }
     
     end{$returnarray}
@@ -967,7 +978,7 @@ function Remove-NsxTMacSet{
 
     param (
         [Parameter (Mandatory=$false,ValueFromPipeline=$true)]
-            #resource object to retriev IPset object from
+            #resource object to retriev MacSet object from
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$MacSetObject,
         [Parameter (Mandatory=$False)]
@@ -1047,7 +1058,7 @@ function New-NsxTMacSet{
             '^([0-9a-f]{4}.){2}([0-9a-f]{4})$'
             '^([0-9a-f]{12})$')
         
-          $MacBody = """mac_addresses"" : ["
+        $MacBody = """mac_addresses"" : ["
         foreach ($MacAddress in $MacAddresses) {
             if ($MacAddress -match ($patterns -join '|')) {
             $MacBody += " ""$($MacAddress)"","
@@ -1091,4 +1102,500 @@ function New-NsxTMacSet{
     }
     
     end{$returnarray}
+}
+
+function Remove-NsxTMacSetAddress{
+
+    param (
+        [Parameter (Mandatory=$true,ValueFromPipeline=$true)]
+            #resource object to retriev MacSet object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$MacSetObject,
+        [Parameter (Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            [string]$MacAddress,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+       
+        #Check if MacAddress is correctly formatted and add to IpBody
+        $patterns = @(
+            '^([0-9a-f]{2}:){5}([0-9a-f]{2})$'
+            '^([0-9a-f]{2}-){5}([0-9a-f]{2})$'
+            '^([0-9a-f]{4}.){2}([0-9a-f]{4})$'
+            '^([0-9a-f]{12})$')
+
+
+        $uri = "/api/v1/mac-sets"
+        if ($MacSetObject) {
+            if ($MacSetObject.resource_type -eq "MACSet") {
+                $uri += "/$($MacSetObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: MacSet"
+            }
+        }
+        $uri += "/members"
+
+        #Check if MacElement is correctly formatted and add to MacBody    
+        if ($MacAddress -match ($patterns -join '|')) {
+            $uri += "/$($MacAddress)"
+        } else {
+            Throw "$($MacAddress) is NOT a MacAdress"
+        }
+        
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        $response = Get-NsxTMacSet -MacSetObject $MacSetObject
+        
+    }
+    
+    end{$response}
+}
+
+function Add-NsxTMacSetAddress{
+
+    param (
+        [Parameter ( Mandatory=$true,ValueFromPipeline=$true)]
+            #resource object to retriev MacSet object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$MacSetObject,
+        [Parameter ( Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            [string]$MacAddress,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+       
+        #Check if MacAddress is correctly formatted and add to IpBody
+        $patterns = @(
+            '^([0-9a-f]{2}:){5}([0-9a-f]{2})$'
+            '^([0-9a-f]{2}-){5}([0-9a-f]{2})$'
+            '^([0-9a-f]{4}.){2}([0-9a-f]{4})$'
+            '^([0-9a-f]{12})$')
+
+
+        $uri = "/api/v1/mac-sets"
+        if ($MacSetObject) {
+            if ($MacSetObject.resource_type -eq "MACSet") {
+                $uri += "/$($MacSetObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: MacSet"
+            }
+        }
+        $uri += "/members"
+
+        #Check if IPelement is correctly formatted and add to MacBody
+        $MacBody = "{""mac_address"" : "
+        foreach ($MacAddress in $MacAddresses) {
+            if ($MacAddress -match ($patterns -join '|')) {
+            $MacBody += " ""$($MacAddress)"""
+            } else {
+                Throw "$($MacAddress) is NOT a MacAdress"
+            }
+        }
+        $MacBody = $MacBody + " }"
+
+        
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $MacBody
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        $response = Get-NsxTMacSet -IMacetObject $MacSetObject
+        
+    }
+    
+    end{$response}
+}
+
+function Get-NsxTNSGroup{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev NSGroup object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSGroupObject,
+        [Parameter ( Mandatory=$false)]
+            #resource object to retriev NSGroup object from
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-groups"
+
+        if ($NSGroupObject) {
+            if ($NSGroupObject.resource_type -eq "NSGroup") {
+                $uri += "/$($NSGroupObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: NSGroup"
+            }
+        }
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        $defaultProperties = @("resource_display_name")
+
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                $returnmembers = @()
+                foreach ($member in $resource.members) {
+                    if ($member.resource_type -eq "NSGroupSimpleExpression") {
+                        switch ($member.target_type) {
+                            "MACSet" {$returnmember = New-Object PsObject -Property @{
+                                    resource_type = $member.target_type
+                                    resource_id = $member.value 
+                                }
+                                $MacSetObject = Get-NsxTMacSet -MacSetObject $returnmember
+                                add-member NoteProperty -InputObject $returnmember -Name "resource_display_name" -Value $MacSetObject.resource_display_name
+                                $returnmembers += $returnmember
+                                break
+                            }
+                            "IPSet" {$returnmember = New-Object PsObject -Property @{
+                                    resource_type = $member.target_type
+                                    resource_id = $member.value 
+                                }
+                                $IpsetObject = Get-NsxTIPSet -IpSetObject $returnmember
+                                add-member NoteProperty -InputObject $returnmember -Name "resource_display_name" -Value $IpSetObject.resource_display_name
+                                $returnmembers += $returnmember
+                                break
+                            }
+                        }
+                    }    
+                }
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id
+                    resource_members = $returnmembers                    
+                }
+                $returnarray += $return
+            }
+
+        } else {
+            $returnmembers = @()
+            foreach ($member in $response.members) {
+                if ($member.resource_type -eq "NSGroupSimpleExpression") {
+                    switch ($member.target_type) {
+                        "MACSet" {$returnmember = New-Object PsObject -Property @{
+                                resource_type = $member.target_type
+                                resource_id = $member.value 
+                            }
+                            $MacSetObject = Get-NsxTMacSet -MacSetObject $returnmember
+                            add-member NoteProperty -InputObject $returnmember -Name "resource_display_name" -Value $MacSetObject.resource_display_name
+                            $returnmembers += $returnmember
+                            break
+                        }
+                        "IPSet" {$returnmember = New-Object PsObject -Property @{
+                                resource_type = $member.target_type
+                                resource_id = $member.value 
+                            }
+                            $IpsetObject = Get-NsxTIPSet -IpSetObject $returnmember
+                            add-member NoteProperty -InputObject $returnmember -Name "resource_display_name" -Value $IpSetObject.resource_display_name
+                            $returnmembers += $returnmember
+                            break
+                        }
+                    }
+                }    
+            }
+                
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_type = $response.resource_type
+                resource_id = $response.id 
+                resource_members = $returnmembers     
+            }
+        }
+        $returnarray = $returnarray | ? {$_.resource_display_name -match $Displayname}
+    }
+    
+    end{$returnarray}
+}
+
+function Remove-NsxTNSGroup{
+
+    param (
+        [Parameter (Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev NSGroup object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSGroupObject,
+        [Parameter (Mandatory=$False)]
+            [switch]$confirm=$true,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-groups"
+
+        if ($NSGroupObject) {
+            if ($NSGroupObject.resource_type -eq "NSGroup") {
+                $uri += "/$($NSGroupObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: NSGroup"
+            }
+        }
+
+        if ( $confirm ) {
+            $message  = "NSX-T NSGroup object removal is permanent."
+            $question = "Proceed with removal of NSX-T NSGroup OBJECT $($NSGroupObject.resource_display_name)?"
+
+            $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
+
+            $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
+        }
+        else { $decision = 0 }
+        if ($decision -eq 0) {
+
+            try {
+                Write-Progress -activity "Remove NSX-T NSGroupObject Object $($NSGroupObject.resource_display_name)"
+                $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
+                Write-Progress -activity "Remove NSX-T NSGroupObject Object $($NSGroupObject.resource_display_name)" -completed
+            }
+            catch {
+                throw "Unable to query from $($connection.Hostname)."
+            }
+        }
+    }
+
+    end{}
+}
+
+function New-NsxTNSGroup{
+
+    param (
+        [Parameter ( Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            [string]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-groups"
+
+        #build JSON body for REST request
+        $body = "{ ""display_name"" : ""$($Displayname) ""}"
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $body
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        #Create response for return value
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id                    
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_type = $response.resource_type
+                resource_id = $response.id    
+                }
+        }
+    }
+    
+    end{$returnarray}
+}
+
+function Add-NsxTNSGroupStaticMember{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retrieve NSGroup object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSGroupObject,
+        [Parameter (Mandatory=$false,ValueFromPipelineByPropertyName=$true)]
+            #resource object to retrieve MacSet object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$MacSetObjects,
+        [Parameter ( Mandatory=$false,ValueFromPipelineByPropertyName=$true)]
+            #resource object to retrieve IPset object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$IpSetObjects,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-groups"
+        if ($NSGroupObject) {
+            if ($NSGroupObject.resource_type -eq "NSGroup") {
+                $uri += "/$($NSGroupObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: NSGroup"
+            }
+        }
+        $uri += "?action=ADD_MEMBERS"
+
+        $body = "{""members"": ["
+        foreach ($MacSetObject in $MacSetObjects) {
+            if ($MacSetObject) {
+                if ($MacSetObject.resource_type -eq "MACSet") {
+                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "MACSet","value": "'+ $MacSetObject.resource_id + '","target_property": "id"},'
+                } else {
+                    ThrowError "Input object is not from resource_type: MacSet"
+                }
+            }
+        }
+        
+        foreach ($IpSetObject in $IpSetObjects) {
+            if ($IpSetObject) {
+                if ($IpSetObject.resource_type -eq "IPSet") {
+                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "IPSet","value": "'+ $IpSetObject.resource_id + '","target_property": "id"},'
+                } else {
+                    ThrowError "Input object is not from resource_type: IPSet"
+                }
+            }
+        }
+        $body = $body.trimend(',') + ']}'
+        
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $body
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        $response = Get-NsxTNSGroup -NSGroupObject $NSGroupObject
+        
+    }
+    
+    end{$response}
+}
+
+function Remove-NsxTNSGroupStaticMember{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retrieve NSGroup object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSGroupObject,
+        [Parameter (Mandatory=$false,ValueFromPipelineByPropertyName=$true)]
+            #resource object to retrieve MacSet object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$MacSetObjects,
+        [Parameter ( Mandatory=$false,ValueFromPipelineByPropertyName=$true)]
+            #resource object to retrieve IPset object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$IpSetObjects,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-groups"
+        if ($NSGroupObject) {
+            if ($NSGroupObject.resource_type -eq "NSGroup") {
+                $uri += "/$($NSGroupObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: NSGroup"
+            }
+        }
+        $uri += "?action=REMOVE_MEMBERS"
+
+        $body = "{""members"": ["
+        foreach ($MacSetObject in $MacSetObjects) {
+            if ($MacSetObject) {
+                if ($MacSetObject.resource_type -eq "MACSet") {
+                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "MACSet","value": "'+ $MacSetObject.resource_id + '","target_property": "id"},'
+                } else {
+                    ThrowError "Input object is not from resource_type: MacSet"
+                }
+            }
+        }
+        
+        foreach ($IpSetObject in $IpSetObjects) {
+            if ($IpSetObject) {
+                if ($IpSetObject.resource_type -eq "IPSet") {
+                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "IPSet","value": "'+ $IpSetObject.resource_id + '","target_property": "id"},'
+                } else {
+                    ThrowError "Input object is not from resource_type: IPSet"
+                }
+            }
+        }
+        $body = $body.trimend(',') + ']}'
+        
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $body
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        $response = Get-NsxTNSGroup -NSGroupObject $NSGroupObject
+        
+    }
+    
+    end{$response}
 }
