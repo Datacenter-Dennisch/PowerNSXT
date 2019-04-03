@@ -579,7 +579,6 @@ function Get-NsxTIpSet{
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$IpSetObject,
         [Parameter ( Mandatory=$false)]
-            #resource object to retriev NSGroup object from
             [ValidateNotNullOrEmpty()]
             [String]$Displayname, 
         [Parameter (Mandatory=$False)]
@@ -628,8 +627,7 @@ function Get-NsxTIpSet{
                 resource_id = $response.id    
                 }
         }
-        $returnarray = $returnarray | ? {$_.resource_display_name -match $Displayname}
-
+        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
     }
     
     end{$returnarray}
@@ -919,7 +917,6 @@ function Get-NsxTMacSet{
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$MacSetObject,        
         [Parameter ( Mandatory=$false)]
-            #resource object to retriev NSGroup object from
             [ValidateNotNullOrEmpty()]
             [String]$Displayname,
         [Parameter (Mandatory=$False)]
@@ -968,7 +965,7 @@ function Get-NsxTMacSet{
                 resource_id = $response.id    
                 }
         }
-        $returnarray = $returnarray | ? {$_.resource_display_name -match $Displayname}
+        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
     }
     
     end{$returnarray}
@@ -1238,7 +1235,6 @@ function Get-NsxTNSGroup{
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$NSGroupObject,
         [Parameter ( Mandatory=$false)]
-            #resource object to retriev NSGroup object from
             [ValidateNotNullOrEmpty()]
             [String]$Displayname,
         [Parameter (Mandatory=$False)]
@@ -1340,7 +1336,7 @@ function Get-NsxTNSGroup{
                 resource_members = $returnmembers     
             }
         }
-        $returnarray = $returnarray | ? {$_.resource_display_name -match $Displayname}
+        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
     }
     
     end{$returnarray}
@@ -1598,4 +1594,211 @@ function Remove-NsxTNSGroupStaticMember{
     }
     
     end{$response}
+}
+
+function Get-NsxTNSService{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev Service object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$ServiceObject,        
+        [Parameter ( Mandatory=$false)]
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-services"
+
+        if ($ServiceObject) {
+            if ($ServiceObject.resource_type -eq "NSService") {
+                $uri += "/$($ServiceObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: NSService"
+            }
+        }
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+       
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                foreach ($resourceelement in $resource.nsservice_element) {
+
+                }
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id                    
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_type = $response.resource_type
+                resource_id = $response.id    
+                }
+        }
+        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
+    }
+    
+    end{$returnarray}
+}
+
+function Remove-NsxTNSService{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev Service object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$ServiceObject, 
+        [Parameter (Mandatory=$False)]
+            [switch]$confirm=$true,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-services"
+
+        if ($ServiceObject) {
+            if ($ServiceObject.resource_type -eq "NSService") {
+                $uri += "/$($ServiceObject.resource_id)"
+            } else {
+                ThrowError -ExceptionMessage "Input object is not from resource_type: NSService"
+            }
+        }
+
+        if ( $confirm ) {
+            $message  = "NSX-T NSService object removal is permanent."
+            $question = "Proceed with removal of NSX-T NSService OBJECT $($ServiceObject.resource_display_name)?"
+
+            $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
+
+            $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
+        }
+        else { $decision = 0 }
+        if ($decision -eq 0) {
+
+            try {
+                Write-Progress -activity "Remove NSX-T NSService Object $($ServiceObject.resource_display_name)"
+                $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
+                Write-Progress -activity "Remove NSX-T NSService Object $($ServiceObject.resource_display_name)" -completed
+            }
+            catch {
+                throw "Unable to query from $($connection.Hostname)."
+            }
+        }
+    }
+
+    end{}
+}
+
+function New-NsxTNSService{
+
+    param (
+        [Parameter ( Mandatory=$true, ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [string]$Displayname,
+        [Parameter (Mandatory=$False, ParameterSetName="__AllParameterSets")]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection,
+        [Parameter (Mandatory=$true, ParameterSetName="L4protocol")]
+            [ValidateSet('TCP','UDP')]
+            [string]$L4Protocol,    
+        [Parameter (Mandatory=$false, ParameterSetName="L4protocol")]
+            [ValidateNotNullOrEmpty()]
+            [string]$SourcePorts,
+        [Parameter (Mandatory=$false, ParameterSetName="L4protocol")]
+            [ValidateNotNullOrEmpty()]
+            [string]$DestinationPorts,
+        [Parameter (Mandatory=$true, ParameterSetName="ICMPprotocol")]
+            [ValidateSet('ICMPv4','ICMPv6')]
+            [string]$ICMPprotocol,
+        [Parameter (Mandatory=$true, ParameterSetName="ICMPprotocol")]
+            [ValidateNotNullOrEmpty()]
+            [int]$ICMPcode,
+        [Parameter (Mandatory=$true, ParameterSetName="ICMPprotocol")]
+            [ValidateNotNullOrEmpty()]
+            [int]$ICMPtype
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/ns-services"
+
+        #build JSON body for REST request
+        $body = "{ ""display_name"" : ""$($Displayname)"""
+        switch ($PSCmdlet.ParameterSetName) {
+            "L4protocol" {
+                $body += ', "nsservice_element":{"l4_protocol": "' + $L4Protocol + '"'
+                if ($SourcePorts) {$body += ', "source_ports": [ "' + $SourcePorts + '" ]'}
+                if ($DestinationPorts) {$body += ', "destination_ports": [ "' + $DestinationPorts + '"]'}
+                $body += ', "resource_type": "L4PortSetNSService"}'
+                break
+            }
+            "ICMPprotocol" {
+                $body += ', "nsservice_element":{"protocol": "'+$ICMPprotocol+'", "icmp_code": '+$ICMPcode+', "icmp_type": '+$ICMPtype+', "resource_type": "ICMPTypeNSService"}'
+
+            }
+        }
+        $body += "}"
+        write-host $body
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $body
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        #Create response for return value
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                foreach ($resourceelement in $resource.nsservice_element) {
+
+                }
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id                    
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_type = $response.resource_type
+                resource_id = $response.id    
+                }
+        }
+    }
+    
+    end{$returnarray}
 }
