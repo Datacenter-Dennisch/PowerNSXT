@@ -1636,9 +1636,6 @@ function Get-NsxTNSService{
         if ($response.results) {
             $returnarray = @()
             foreach ($resource in $response.results) {
-                foreach ($resourceelement in $resource.nsservice_element) {
-
-                }
                 $return = New-Object PsObject -Property @{
                     resource_display_name = $resource.display_name
                     resource_type = $resource.resource_type
@@ -1842,22 +1839,39 @@ function Get-NsxTNSServiceGroup{
         if ($response.results) {
             $returnarray = @()
             foreach ($resource in $response.results) {
-                foreach ($resourceelement in $resource.nsservice_element) {
-
+                $returnmembers = @()
+                foreach ($member in $resource.members) {
+                    $returnmember = New-Object PsObject -Property @{
+                        resource_type = $member.target_type
+                        resource_id = $member.target_id
+                        resource_display_name =  $member.target_display_name
+                    }
+                    $returnmembers += $returnmember
                 }
                 $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
+                resource_display_name = $resource.display_name
+                resource_type = $resource.resource_type
+                resource_id = $resource.id
+                resource_members = $returnmembers                     
                 }
-                $returnarray += $return
+            $returnarray += $return
             }
         } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_type = $response.resource_type
-                resource_id = $response.id    
+            $returnmembers = @()
+            foreach ($member in $response.members) {
+                $returnmember = New-Object PsObject -Property @{
+                    resource_type = $member.target_type
+                    resource_id = $member.target_id
+                    resource_display_name =  $member.target_display_name
                 }
+                $returnmembers += $returnmember
+            }
+            $returnarray = New-Object PsObject -Property @{
+            resource_display_name = $response.display_name
+            resource_type = $response.resource_type
+            resource_id = $response.id 
+            resource_members = $returnmembers     
+            }
         }
         if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
     }
@@ -1959,26 +1973,13 @@ function New-NsxTNSServiceGroup{
         }
         
         #Create response for return value
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                foreach ($resourceelement in $resource.nsservice_element) {
-
-                }
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
+        $NSServiceGroupObject = New-Object PsObject -Property @{
+            resource_display_name = $response.display_name
+            resource_type = $response.resource_type
+            resource_id = $response.id    
         }
+        
+        $returnarray = Get-NsxTNSServiceGroup -NSServiceGroupObject $NSServiceGroupObject
     }
     
     end{$returnarray}
