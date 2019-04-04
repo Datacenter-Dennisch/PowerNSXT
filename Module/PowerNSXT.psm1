@@ -1836,6 +1836,7 @@ function Get-NsxTNSServiceGroup{
             throw "Unable to query from $($connection.Hostname)."
         }
        
+        #convert NSServiceGroup members to NSService objects for return result.
         if ($response.results) {
             $returnarray = @()
             foreach ($resource in $response.results) {
@@ -1962,7 +1963,7 @@ function New-NsxTNSServiceGroup{
                 $body += '{"target_id": "'+$NSServiceObject.resource_id+'", "target_type": "NSService"},'
             }
         $body = $body.trimend(',') + "]}"
-        write-host $body
+        
 
         #Execute REST API Call
         try {
@@ -1984,3 +1985,329 @@ function New-NsxTNSServiceGroup{
     
     end{$returnarray}
 }
+
+function Add-NsxTNSServiceGroupMember{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retrieve NSGroup object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSServiceGroupObject,
+        [Parameter (Mandatory=$true)]
+            #resource object to retrieve NSService object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSServiceObjects,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+
+        $uri = "/api/v1/ns-service-groups"
+        # AD resource id to uri
+        if ($NSServiceGroupObject) {
+            if ($NSServiceGroupObject.resource_type -eq "NSServiceGroup") {
+                $uri += "/$($NSServiceGroupObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: NSGroup"
+            }
+        }
+
+        #Retrieve NSServiceGroup infromation (JSON) REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+
+        $NSServiceGroupMemberObjects = $response.members
+        foreach ($NSServiceObject in $NSServiceObjects) {
+            $NSServiceGroupMemberObject = New-Object PsObject -Property @{
+                target_display_name = $NSServiceObject.resource_display_name
+                target_id = $NSServiceObject.resource_id
+                target_type = $NSServiceObject.resource_type
+                is_valid = "True"  
+            }
+            #$response.members =+ $NSServiceGroupMemberObject
+            $NSServiceGroupMemberObjects += $NSServiceGroupMemberObject
+        }
+        $bodyPSobject = New-Object PsObject -Property @{
+            resource_type = $response.resource_type
+            id = $response.id
+            display_name = $response.display_name
+            service_type = $response.service_type
+            default_service = $response.default_service
+            members = $NSServiceGroupMemberObjects
+            _revision = $response._revision
+        }
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method put -uri $uri -body ($bodyPSobject | convertto-json)
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        $response = Get-NsxTNSServiceGroup -NSServiceGroupObject $NSServiceGroupObject
+        
+    }
+    
+    end{$response}
+}
+
+function Remove-NsxTNSServiceGroupMember{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retrieve NSGroup object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSServiceGroupObject,
+        [Parameter (Mandatory=$true)]
+            #resource object to retrieve NSService object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSServiceObjects,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+
+        $uri = "/api/v1/ns-service-groups"
+        # AD resource id to uri
+        if ($NSServiceGroupObject) {
+            if ($NSServiceGroupObject.resource_type -eq "NSServiceGroup") {
+                $uri += "/$($NSServiceGroupObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: NSGroup"
+            }
+        }
+
+        #Retrieve NSServiceGroup infromation (JSON) REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        $NSServiceGroupMemberObjects = [System.Collections.ArrayList]$response.members.removeat(0)
+        foreach ($NSServiceObject in $NSServiceObjects) {
+            foreach ($key in 0 .. $NSServiceGroupMemberObjects.count) {
+                if ($NSServiceGroupMemberObjects[$key].target_id -match $NSServiceObject.resource_id) {$NSServiceGroupMemberObjects.removeat($key)}
+            }
+        }
+        
+        $bodyPSobject = New-Object PsObject -Property @{
+            resource_type = $response.resource_type
+            id = $response.id
+            display_name = $response.display_name
+            service_type = $response.service_type
+            default_service = $response.default_service
+            members = $NSServiceGroupMemberObjects
+            _revision = $response._revision
+        }
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method put -uri $uri -body ($bodyPSobject | convertto-json)
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        $response = Get-NsxTNSServiceGroup -NSServiceGroupObject $NSServiceGroupObject
+        
+    }
+    
+    end{$response}
+}
+
+function Get-NsxTTransportZone{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev TransportZone object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$TransportZoneObject,        
+        [Parameter ( Mandatory=$false)]
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/transport-zones"
+
+        if ($TransportZoneObject) {
+            if ($TransportZoneObject.resource_type -eq "TransportZone") {
+                $uri += "/$($TransportZoneObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: TransportZone"
+            }
+        }
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+       
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id
+                    resource_transport_type = $resource.transport_type
+                    resource_host_switch_name = $resource.host_switch_name
+                    resource_description = $resource.description                   
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_type = $response.resource_type
+                resource_id = $response.id
+                resource_transport_type = $response.transport_type
+                resource_host_switch_name = $response.host_switch_name
+                resource_description = $response.description
+            }
+        }
+        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
+    }
+    
+    end{$returnarray}
+}
+
+function New-NsxTTransportZone{
+
+    param (
+        [Parameter ( Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            [string]$Displayname,
+        [Parameter ( Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            [string]$NVDSHostSwitchName,
+        [Parameter ( Mandatory=$false)]
+            [ValidateNotNullOrEmpty()]
+            [string]$Description,
+        [Parameter (Mandatory=$true)]
+            [ValidateSet('OVERLAY','VLAN')]
+            [PSCustomObject]$TrafficType,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/transport-zones"
+        
+        #build JSON body for REST request
+        $bodyPSobject = New-Object PsObject -Property @{
+            display_name = $Displayname 
+            host_switch_name = $NVDSHostSwitchName
+            description = $Description
+            transport_type = $TrafficType
+        }
+    
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body ($bodyPSobject | convertto-json)
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        #Create response for return value
+        $returnarray = New-Object PsObject -Property @{
+            resource_display_name = $response.display_name
+            resource_type = $response.resource_type
+            resource_id = $response.id
+            resource_transport_type = $response.transport_type
+            resource_host_switch_name = $response.host_switch_name
+            resource_description = $response.description
+        }
+    }
+    
+    end{$returnarray}
+}
+
+function Remove-NsxTTransportZone{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev TransportZone object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$TransportZoneObject, 
+        [Parameter (Mandatory=$False)]
+            [switch]$Confirm=$true,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/transport-zones"
+
+        if ($TransportZoneObject) {
+            if ($TransportZoneObject.resource_type -eq "TransportZone") {
+                $uri += "/$($TransportZoneObject.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: TransportZone"
+            }
+        }
+
+        if ( $Confirm ) {
+            $message  = "NSX-T TransportZone object removal is permanent."
+            $question = "Proceed with removal of NSX-T TransportZone OBJECT $($TransportZoneObject.resource_display_name)?"
+
+            $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
+
+            $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
+        }
+        else { $decision = 0 }
+        if ($decision -eq 0) {
+
+            try {
+                Write-Progress -activity "Remove NSX-T NSService Object $($TransportZoneObject.resource_display_name)"
+                $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
+                Write-Progress -activity "Remove NSX-T NSService Object $($TransportZoneObject.resource_display_name)" -completed
+            }
+            catch {
+                throw "Unable to query from $($connection.Hostname)."
+            }
+        }
+    }
+
+    end{}
+}
+
