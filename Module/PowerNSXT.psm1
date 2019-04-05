@@ -2311,3 +2311,217 @@ function Remove-NsxTTransportZone{
     end{}
 }
 
+function Get-NsxTLogicalSwitch{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev Logical Switch object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSLogicalSwitch,        
+        [Parameter ( Mandatory=$false)]
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/logical-switches"
+
+        if ($NSLogicalSwitch) {
+            if ($NSLogicalSwitch.resource_type -eq "LogicalSwitch") {
+                $uri += "/$($NSLogicalSwitch.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: LogicalSwitch"
+            }
+        }
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+       
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id                    
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_type = $response.resource_type
+                resource_id = $response.id    
+                }
+        }
+        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
+    }
+    
+    end{$returnarray}
+}
+
+function New-NsxTLogicalSwitch{
+
+    param (
+        [Parameter ( Mandatory=$true,ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [string]$Displayname,
+        [Parameter ( Mandatory=$true,ParameterSetName="__AllParameterSets")]
+            [ValidateSet('MTEP','SOURCE')]
+            [String]$ReplicationMode,
+        [Parameter ( Mandatory=$true,ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$TransportZoneObject,
+        [Parameter ( Mandatory=$false,ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [string]$Description,
+        [Parameter ( Mandatory=$false,ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [bool]$Hybrid=$false,
+        [Parameter ( Mandatory=$false,ParameterSetName="VlanId")]
+            [ValidateNotNullOrEmpty()]
+            [int]$VlanId,
+        [Parameter ( Mandatory=$true,ParameterSetName="VlanRange")]
+            [ValidateNotNullOrEmpty()]
+            [string]$VlanRangeBegin,
+        [Parameter ( Mandatory=$true,ParameterSetName="VlanRange")]
+            [ValidateNotNullOrEmpty()]
+            [string]$VlanRangeEnd,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/logical-switches"
+       
+       #build JSON body for REST request
+       $bodyPSobject = New-Object PsObject -Property @{
+            transport_zone_id = $TransportZoneObject.resource_id
+            replication_mode = $ReplicationMode
+            admin_state = "UP"
+            display_name = $Displayname
+            hybrid = $Hybrid
+            description = $Description
+        }
+       
+        if ($VlanId) {
+            $VlanRangeBegin = $VlanId
+            $VlanRangeEnd = $VlanId
+        }
+
+        if ($VlanRangeBegin -or $VlanId) {
+            $VlanRanges = New-Object PsObject -Property @{
+                start = $VlanRangeBegin
+                end = $VlanRangeEnd
+            }
+            $VlanTrunkSpec = New-Object PsObject -Property @{
+                vlan_ranges = @($VlanRanges)
+            }
+            Add-Member -InputObject $bodyPSobject NoteProperty -Name "vlan_trunk_spec" -Value $VlanTrunkSpec
+        }
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body ($bodyPSobject | convertto-json -Depth 5)
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        #Create response for return value
+        if ($response.results) {
+            $returnarray = @()
+            foreach ($resource in $response.results) {
+                foreach ($resourceelement in $resource.nsservice_element) {
+
+                }
+                $return = New-Object PsObject -Property @{
+                    resource_display_name = $resource.display_name
+                    resource_type = $resource.resource_type
+                    resource_id = $resource.id                    
+                }
+                $returnarray += $return
+            }
+        } else {
+            $returnarray = New-Object PsObject -Property @{
+                resource_display_name = $response.display_name
+                resource_type = $response.resource_type
+                resource_id = $response.id    
+                }
+        }
+    }
+    
+    end{$returnarray}
+}
+
+function Remove-NsxTLogicalSwitch{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev Logical Switch object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSLogicalSwitch,
+        [Parameter (Mandatory=$False)]
+            [switch]$Confirm=$true,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/logical-switches"
+
+        if ($NSLogicalSwitch) {
+            if ($NSLogicalSwitch.resource_type -eq "LogicalSwitch") {
+                $uri += "/$($NSLogicalSwitch.resource_id)"
+            } else {
+                ThrowError "Input object is not from resource_type: LogicalSwitch"
+            }
+        }
+
+        if ( $Confirm ) {
+            $message  = "NSX-T TransportZone object removal is permanent."
+            $question = "Proceed with removal of NSX-T TransportZone OBJECT $($NSLogicalSwitch.resource_display_name)?"
+
+            $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
+
+            $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
+        }
+        else { $decision = 0 }
+        if ($decision -eq 0) {
+
+            try {
+                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($NSLogicalSwitch.resource_display_name)"
+                $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
+                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($NSLogicalSwitch.resource_display_name)" -completed
+            }
+            catch {
+                throw "Unable to query from $($connection.Hostname)."
+            }
+        }
+    }
+
+    end{}
+}
