@@ -595,9 +595,9 @@ function Get-NsxTIpSet{
 
         if ($IpSetObject) {
             if ($IpSetObject.resource_type -eq "IPSet") {
-                $uri += "/$($IpSetObject.resource_id)"
+                $uri += "/$($IpSetObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: IPset"
+                Throw "Input object is not from resource_type: IPset"
             }
         }
 
@@ -608,29 +608,11 @@ function Get-NsxTIpSet{
             throw "Unable to query from $($connection.Hostname)."
         }
        
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_ip_addresses = $resource.ip_addresses
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_ip_addresses = $response.ip_addresses
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
-        }
-        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Remove-NsxTIpSet{
@@ -656,15 +638,15 @@ function Remove-NsxTIpSet{
 
         if ($IpSetObject) {
             if ($IpSetObject.resource_type -eq "IPSet") {
-                $uri += "/$($IpSetObject.resource_id)"
+                $uri += "/$($IpSetObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: IPset"
+                Throw "Input object is not from resource_type: IPset"
             }
         }
         
         if ( $Confirm ) {
             $message  = "NSX-T IPSet object removal is permanent."
-            $question = "Proceed with removal of NSX-T IPSET OBJECT $($IpSetObject.resource_display_name)?"
+            $question = "Proceed with removal of NSX-T IPSET OBJECT $($IpSetObject.display_name)?"
 
             $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
             $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
@@ -676,9 +658,9 @@ function Remove-NsxTIpSet{
         if ($decision -eq 0) {
 
             try {
-                Write-Progress -activity "Remove NSX-T IPSet Object $($IpSetObject.resource_display_name)"
+                Write-Progress -activity "Remove NSX-T IPSet Object $($IpSetObject.display_name)"
                 $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
-                Write-Progress -activity "Remove NSX-T IPSet Object $($IpSetObject.resource_display_name)" -completed
+                Write-Progress -activity "Remove NSX-T IPSet Object $($IpSetObject.display_name)" -completed
             }
             catch {
                 throw "Unable to query from $($connection.Hostname)."
@@ -745,28 +727,10 @@ function New-NsxTIpSet{
         }
         
         #Create response for return value
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_ip_addresses = $resource.ip_addresses
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_ip_addresses = $response.ip_addresses
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
-        }
+        if ($response.results) {$return = $response.results} else {$return = $response}
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Remove-NsxTIpSetAddress{
@@ -795,9 +759,9 @@ function Remove-NsxTIpSetAddress{
 
         if ($IpSetObject) {
             if ($IpSetObject.resource_type -eq "IPSet") {
-                $uri += "/$($IpSetObject.resource_id)"
+                $uri += "/$($IpSetObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: IPset"
+                Throw "Input object is not from resource_type: IPset"
             }
         }
         $uri += "?action=remove_ip"
@@ -832,11 +796,10 @@ function Remove-NsxTIpSetAddress{
             throw "Unable to query from $($connection.Hostname)."
         }
         
-        $response = Get-NsxTIpSet -IpSetObject $IpSetObject
-        
+        if ($response.results) {$return = $response.results} else {$return = $response}        
     }
     
-    end{$response}
+    end{$return}
 }
 
 function Add-NsxTIpSetAddress{
@@ -865,9 +828,9 @@ function Add-NsxTIpSetAddress{
 
         if ($IpSetObject) {
             if ($IpSetObject.resource_type -eq "IPSet") {
-                $uri += "/$($IpSetObject.resource_id)"
+                $uri += "/$($IpSetObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: IPset"
+                Throw "Input object is not from resource_type: IPset"
             }
         }
         $uri += "?action=add_ip"
@@ -902,11 +865,11 @@ function Add-NsxTIpSetAddress{
             throw "Unable to query from $($connection.Hostname)."
         }
         
-        $response = Get-NsxTIpSet -IpSetObject $IpSetObject
+        if ($response.results) {$return = $response.results} else {$return = $response}
         
     }
     
-    end{$response}
+    end{$return}
 }
 
 function Get-NsxTMacSet{
@@ -933,42 +896,22 @@ function Get-NsxTMacSet{
 
         if ($MacSetObject) {
             if ($MacSetObject.resource_type -eq "MACset") {
-                $uri += "/$($MacSetObject.resource_id)"
+                $uri += "/$($MacSetObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: MACset"
+                Throw "Input object is not from resource_type: MACset"
             }
         }
-
         try {
             $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
         }
         catch {
             throw "Unable to query from $($connection.Hostname)."
         }
-       
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_mac_addresses = $resource.mac_addresses
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_mac_addresses = $response.mac_addresses
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
-        }
-        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Remove-NsxTMacSet{
@@ -994,15 +937,15 @@ function Remove-NsxTMacSet{
 
         if ($MacSetObject) {
             if ($MacSetObject.resource_type -eq "MACset") {
-                $uri += "/$($MacSetObject.resource_id)"
+                $uri += "/$($MacSetObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: MACset"
+                Throw "Input object is not from resource_type: MACset"
             }
         }
 
         if ( $Confirm ) {
             $message  = "NSX-T MACSet object removal is permanent."
-            $question = "Proceed with removal of NSX-T MACSET OBJECT $($MacSetObject.resource_display_name)?"
+            $question = "Proceed with removal of NSX-T MACSET OBJECT $($MacSetObject.display_name)?"
 
             $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
             $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
@@ -1014,9 +957,10 @@ function Remove-NsxTMacSet{
         if ($decision -eq 0) {
 
             try {
-                Write-Progress -activity "Remove NSX-T IPSet Object $($MacSetObject.resource_display_name)"
+                Write-Progress -activity "Remove NSX-T IPSet Object $($MacSetObject.display_name)"
+                Write-Debug "Remove-NsxTMacSet: method:delete uri:$($uri)"
                 $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
-                Write-Progress -activity "Remove NSX-T IPSet Object $($MacSetObject.resource_display_name)" -completed
+                Write-Progress -activity "Remove NSX-T IPSet Object $($MacSetObject.display_name)" -completed
             }
             catch {
                 throw "Unable to query from $($connection.Hostname)."
@@ -1055,18 +999,21 @@ function New-NsxTMacSet{
             '^([0-9a-f]{4}.){2}([0-9a-f]{4})$'
             '^([0-9a-f]{12})$')
         
-        $MacBody = """mac_addresses"" : ["
+        $MacAddressBody = @()
         foreach ($MacAddress in $MacAddresses) {
             if ($MacAddress -match ($patterns -join '|')) {
-            $MacBody += " ""$($MacAddress)"","
+                Write-Debug "New-NsxTMacSet: $($MacAddress) is in the correct format"
+                $MacAddressBody += $MacAddress              
             } else {
-                Throw "$($MacAddress) is NOT a MacAdress"
+                Write-Debug "New-NsxTMacSet: $($MacAddress) not in the correct format"
+                Throw "$($MacAddress) is not in the correct format"
             }
         }
-        $MacBody = $MacBody.TrimEnd(",") + " ]"
-
-        #build JSON body for REST request
-        $body = "{ ""display_name"" : ""$($Displayname) "", $($MacBody)}"
+        $bodyPSobject = New-Object PsObject -Property @{
+            display_name = $Displayname
+            mac_addresses = $MacAddressBody 
+        }
+        $body = $bodyPSobject | ConvertTo-Json
 
         #Execute REST API Call
         try {
@@ -1077,28 +1024,10 @@ function New-NsxTMacSet{
         }
         
         #Create response for return value
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_mac_addresses = $resource.mac_addresses
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_mac_addresses = $response.mac_addresses
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
-        }
+        if ($response.results) {$return = $response.results} else {$return = $response}
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Remove-NsxTMacSetAddress{
@@ -1132,9 +1061,9 @@ function Remove-NsxTMacSetAddress{
         $uri = "/api/v1/mac-sets"
         if ($MacSetObject) {
             if ($MacSetObject.resource_type -eq "MACSet") {
-                $uri += "/$($MacSetObject.resource_id)"
+                $uri += "/$($MacSetObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: MacSet"
+                Throw "Input object is not from resource_type: MacSet"
             }
         }
         $uri += "/members"
@@ -1145,7 +1074,7 @@ function Remove-NsxTMacSetAddress{
         } else {
             Throw "$($MacAddress) is NOT a MacAdress"
         }
-        
+
         #Execute REST API Call
         try {
             $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
@@ -1154,11 +1083,10 @@ function Remove-NsxTMacSetAddress{
             throw "Unable to query from $($connection.Hostname)."
         }
         
-        $response = Get-NsxTMacSet -MacSetObject $MacSetObject
-        
+        if ($response.results) {$return = $response.results} else {$return = $response}        
     }
     
-    end{$response}
+    end{$return}
 }
 
 function Add-NsxTMacSetAddress{
@@ -1190,41 +1118,40 @@ function Add-NsxTMacSetAddress{
 
 
         $uri = "/api/v1/mac-sets"
+        #check if MacSetObject is of resource_type MacSet
         if ($MacSetObject) {
             if ($MacSetObject.resource_type -eq "MACSet") {
-                $uri += "/$($MacSetObject.resource_id)"
+                $uri += "/$($MacSetObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: MacSet"
+                Throw "Input object is not from resource_type: MacSet"
             }
         }
         $uri += "/members"
 
-        #Check if IPelement is correctly formatted and add to MacBody
-        $MacBody = "{""mac_address"" : "
-        foreach ($MacAddress in $MacAddresses) {
-            if ($MacAddress -match ($patterns -join '|')) {
-            $MacBody += " ""$($MacAddress)"""
-            } else {
-                Throw "$($MacAddress) is NOT a MacAdress"
+        #Check if MacAddress is correctly formatted and add to body
+        if ($MacAddress -match ($patterns -join '|')) {
+            Write-Debug "Add-NsxTMacSetAddress: adding $($MacAddress) to MacSetObject $($MacSetObject.display_name)"
+            $bodyPSobject = New-Object PsObject -Property @{
+                mac_address = $MacAddress
             }
+        } else {
+            Write-Debug "Add-NsxTMacSetAddress: $($MacAddress) no in the correct format"
+            Throw "$($MacAddress) is not in the correct format"
         }
-        $MacBody = $MacBody + " }"
-
-        
+        $body = $bodyPSobject | ConvertTo-Json
 
         #Execute REST API Call
         try {
-            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $MacBody
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body $body 
         }
         catch {
             throw "Unable to query from $($connection.Hostname)."
         }
         
-        $response = Get-NsxTMacSet -IMacetObject $MacSetObject
-        
+        if ($response.results) {$return = $response.results} else {$return = $response}        
     }
     
-    end{$response}
+    end{$return}
 }
 
 function Get-NsxTNSGroup{
@@ -1251,9 +1178,9 @@ function Get-NsxTNSGroup{
 
         if ($NSGroupObject) {
             if ($NSGroupObject.resource_type -eq "NSGroup") {
-                $uri += "/$($NSGroupObject.resource_id)"
+                $uri += "/$($NSGroupObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: NSGroup"
+                Throw "Input object is not from resource_type: NSGroup"
             }
         }
 
@@ -1263,83 +1190,10 @@ function Get-NsxTNSGroup{
         catch {
             throw "Unable to query from $($connection.Hostname)."
         }
-        $defaultProperties = @("resource_display_name")
-
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $returnmembers = @()
-                foreach ($member in $resource.members) {
-                    if ($member.resource_type -eq "NSGroupSimpleExpression") {
-                        switch ($member.target_type) {
-                            "MACSet" {$returnmember = New-Object PsObject -Property @{
-                                    resource_type = $member.target_type
-                                    resource_id = $member.value 
-                                }
-                                $MacSetObject = Get-NsxTMacSet -MacSetObject $returnmember
-                                add-member NoteProperty -InputObject $returnmember -Name "resource_display_name" -Value $MacSetObject.resource_display_name
-                                $returnmembers += $returnmember
-                                break
-                            }
-                            "IPSet" {$returnmember = New-Object PsObject -Property @{
-                                    resource_type = $member.target_type
-                                    resource_id = $member.value 
-                                }
-                                $IpsetObject = Get-NsxTIPSet -IpSetObject $returnmember
-                                add-member NoteProperty -InputObject $returnmember -Name "resource_display_name" -Value $IpSetObject.resource_display_name
-                                $returnmembers += $returnmember
-                                break
-                            }
-                        }
-                    }    
-                }
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id
-                    resource_members = $returnmembers                    
-                }
-                $returnarray += $return
-            }
-
-        } else {
-            $returnmembers = @()
-            foreach ($member in $response.members) {
-                if ($member.resource_type -eq "NSGroupSimpleExpression") {
-                    switch ($member.target_type) {
-                        "MACSet" {$returnmember = New-Object PsObject -Property @{
-                                resource_type = $member.target_type
-                                resource_id = $member.value 
-                            }
-                            $MacSetObject = Get-NsxTMacSet -MacSetObject $returnmember
-                            add-member NoteProperty -InputObject $returnmember -Name "resource_display_name" -Value $MacSetObject.resource_display_name
-                            $returnmembers += $returnmember
-                            break
-                        }
-                        "IPSet" {$returnmember = New-Object PsObject -Property @{
-                                resource_type = $member.target_type
-                                resource_id = $member.value 
-                            }
-                            $IpsetObject = Get-NsxTIPSet -IpSetObject $returnmember
-                            add-member NoteProperty -InputObject $returnmember -Name "resource_display_name" -Value $IpSetObject.resource_display_name
-                            $returnmembers += $returnmember
-                            break
-                        }
-                    }
-                }    
-            }
-                
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_type = $response.resource_type
-                resource_id = $response.id 
-                resource_members = $returnmembers     
-            }
-        }
-        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
     }
-    
-    end{$returnarray}
+    end{$return}
 }
 
 function Remove-NsxTNSGroup{
@@ -1365,15 +1219,15 @@ function Remove-NsxTNSGroup{
 
         if ($NSGroupObject) {
             if ($NSGroupObject.resource_type -eq "NSGroup") {
-                $uri += "/$($NSGroupObject.resource_id)"
+                $uri += "/$($NSGroupObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: NSGroup"
+                Throw "Input object is not from resource_type: NSGroup"
             }
         }
 
         if ( $Confirm ) {
             $message  = "NSX-T NSGroup object removal is permanent."
-            $question = "Proceed with removal of NSX-T NSGroup OBJECT $($NSGroupObject.resource_display_name)?"
+            $question = "Proceed with removal of NSX-T NSGroup OBJECT $($NSGroupObject.display_name)?"
 
             $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
             $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
@@ -1385,9 +1239,9 @@ function Remove-NsxTNSGroup{
         if ($decision -eq 0) {
 
             try {
-                Write-Progress -activity "Remove NSX-T NSGroupObject Object $($NSGroupObject.resource_display_name)"
+                Write-Progress -activity "Remove NSX-T NSGroupObject Object $($NSGroupObject.display_name)"
                 $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
-                Write-Progress -activity "Remove NSX-T NSGroupObject Object $($NSGroupObject.resource_display_name)" -completed
+                Write-Progress -activity "Remove NSX-T NSGroupObject Object $($NSGroupObject.display_name)" -completed
             }
             catch {
                 throw "Unable to query from $($connection.Hostname)."
@@ -1428,26 +1282,10 @@ function New-NsxTNSGroup{
         }
         
         #Create response for return value
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
-        }
+        if ($response.results) {$return = $response.results} else {$return = $response}
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Add-NsxTNSGroupStaticMember{
@@ -1478,9 +1316,9 @@ function Add-NsxTNSGroupStaticMember{
         $uri = "/api/v1/ns-groups"
         if ($NSGroupObject) {
             if ($NSGroupObject.resource_type -eq "NSGroup") {
-                $uri += "/$($NSGroupObject.resource_id)"
+                $uri += "/$($NSGroupObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: NSGroup"
+                Throw "Input object is not from resource_type: NSGroup"
             }
         }
         $uri += "?action=ADD_MEMBERS"
@@ -1489,9 +1327,9 @@ function Add-NsxTNSGroupStaticMember{
         foreach ($MacSetObject in $MacSetObjects) {
             if ($MacSetObject) {
                 if ($MacSetObject.resource_type -eq "MACSet") {
-                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "MACSet","value": "'+ $MacSetObject.resource_id + '","target_property": "id"},'
+                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "MACSet","value": "'+ $MacSetObject.id + '","target_property": "id"},'
                 } else {
-                    ThrowError "Input object is not from resource_type: MacSet"
+                    Throw "Input object is not from resource_type: MacSet"
                 }
             }
         }
@@ -1499,9 +1337,9 @@ function Add-NsxTNSGroupStaticMember{
         foreach ($IpSetObject in $IpSetObjects) {
             if ($IpSetObject) {
                 if ($IpSetObject.resource_type -eq "IPSet") {
-                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "IPSet","value": "'+ $IpSetObject.resource_id + '","target_property": "id"},'
+                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "IPSet","value": "'+ $IpSetObject.id + '","target_property": "id"},'
                 } else {
-                    ThrowError "Input object is not from resource_type: IPSet"
+                    Throw "Input object is not from resource_type: IPSet"
                 }
             }
         }
@@ -1516,11 +1354,9 @@ function Add-NsxTNSGroupStaticMember{
             throw "Unable to query from $($connection.Hostname)."
         }
         
-        $response = Get-NsxTNSGroup -NSGroupObject $NSGroupObject
-        
+        if ($response.results) {$return = $response.results} else {$return = $response}
     }
-    
-    end{$response}
+    end{$return}
 }
 
 function Remove-NsxTNSGroupStaticMember{
@@ -1551,9 +1387,9 @@ function Remove-NsxTNSGroupStaticMember{
         $uri = "/api/v1/ns-groups"
         if ($NSGroupObject) {
             if ($NSGroupObject.resource_type -eq "NSGroup") {
-                $uri += "/$($NSGroupObject.resource_id)"
+                $uri += "/$($NSGroupObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: NSGroup"
+                Throw "Input object is not from resource_type: NSGroup"
             }
         }
         $uri += "?action=REMOVE_MEMBERS"
@@ -1562,9 +1398,9 @@ function Remove-NsxTNSGroupStaticMember{
         foreach ($MacSetObject in $MacSetObjects) {
             if ($MacSetObject) {
                 if ($MacSetObject.resource_type -eq "MACSet") {
-                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "MACSet","value": "'+ $MacSetObject.resource_id + '","target_property": "id"},'
+                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "MACSet","value": "'+ $MacSetObject.id + '","target_property": "id"},'
                 } else {
-                    ThrowError "Input object is not from resource_type: MacSet"
+                    Throw "Input object is not from resource_type: MacSet"
                 }
             }
         }
@@ -1572,9 +1408,9 @@ function Remove-NsxTNSGroupStaticMember{
         foreach ($IpSetObject in $IpSetObjects) {
             if ($IpSetObject) {
                 if ($IpSetObject.resource_type -eq "IPSet") {
-                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "IPSet","value": "'+ $IpSetObject.resource_id + '","target_property": "id"},'
+                    $body += '{"resource_type": "NSGroupSimpleExpression","op": "EQUALS","target_type": "IPSet","value": "'+ $IpSetObject.id + '","target_property": "id"},'
                 } else {
-                    ThrowError "Input object is not from resource_type: IPSet"
+                    Throw "Input object is not from resource_type: IPSet"
                 }
             }
         }
@@ -1589,11 +1425,11 @@ function Remove-NsxTNSGroupStaticMember{
             throw "Unable to query from $($connection.Hostname)."
         }
         
-        $response = Get-NsxTNSGroup -NSGroupObject $NSGroupObject
+        if ($response.results) {$return = $response.results} else {$return = $response}
         
     }
     
-    end{$response}
+    end{$return}
 }
 
 function Get-NsxTNSService{
@@ -1620,9 +1456,9 @@ function Get-NsxTNSService{
 
         if ($NSServiceObject) {
             if ($NSServiceObject.resource_type -eq "NSService") {
-                $uri += "/$($NSServiceObject.resource_id)"
+                $uri += "/$($NSServiceObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: NSService"
+                Throw "Input object is not from resource_type: NSService"
             }
         }
 
@@ -1633,27 +1469,11 @@ function Get-NsxTNSService{
             throw "Unable to query from $($connection.Hostname)."
         }
        
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
-        }
-        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -like $Displayname})}
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Remove-NsxTNSService{
@@ -1679,15 +1499,15 @@ function Remove-NsxTNSService{
 
         if ($NSServiceObject) {
             if ($NSServiceObject.resource_type -eq "NSService") {
-                $uri += "/$($NSServiceObject.resource_id)"
+                $uri += "/$($NSServiceObject.id)"
             } else {
-                ThrowError -ExceptionMessage "Input object is not from resource_type: NSService"
+                Throw -ExceptionMessage "Input object is not from resource_type: NSService"
             }
         }
 
         if ( $Confirm ) {
             $message  = "NSX-T NSService object removal is permanent."
-            $question = "Proceed with removal of NSX-T NSService OBJECT $($NSServiceObject.resource_display_name)?"
+            $question = "Proceed with removal of NSX-T NSService OBJECT $($NSServiceObject.display_name)?"
 
             $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
             $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
@@ -1699,9 +1519,9 @@ function Remove-NsxTNSService{
         if ($decision -eq 0) {
 
             try {
-                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceObject.resource_display_name)"
+                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceObject.display_name)"
                 $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
-                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceObject.resource_display_name)" -completed
+                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceObject.display_name)" -completed
             }
             catch {
                 throw "Unable to query from $($connection.Hostname)."
@@ -1774,29 +1594,10 @@ function New-NsxTNSService{
         }
         
         #Create response for return value
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                foreach ($resourceelement in $resource.nsservice_element) {
-
-                }
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
-        }
+        if ($response.results) {$return = $response.results} else {$return = $response}
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Get-NsxTNSServiceGroup{
@@ -1823,9 +1624,9 @@ function Get-NsxTNSServiceGroup{
 
         if ($NSServiceGroupObject) {
                 if ($NSServiceGroupObject.resource_type -eq "NSServiceGroup") {
-                $uri += "/$($NSServiceGroupObject.resource_id)"
+                $uri += "/$($NSServiceGroupObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: NSServiceGroup"
+                Throw "Input object is not from resource_type: NSServiceGroup"
             }
         }
 
@@ -1837,47 +1638,11 @@ function Get-NsxTNSServiceGroup{
         }
        
         #convert NSServiceGroup members to NSService objects for return result.
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $returnmembers = @()
-                foreach ($member in $resource.members) {
-                    $returnmember = New-Object PsObject -Property @{
-                        resource_type = $member.target_type
-                        resource_id = $member.target_id
-                        resource_display_name =  $member.target_display_name
-                    }
-                    $returnmembers += $returnmember
-                }
-                $return = New-Object PsObject -Property @{
-                resource_display_name = $resource.display_name
-                resource_type = $resource.resource_type
-                resource_id = $resource.id
-                resource_members = $returnmembers                     
-                }
-            $returnarray += $return
-            }
-        } else {
-            $returnmembers = @()
-            foreach ($member in $response.members) {
-                $returnmember = New-Object PsObject -Property @{
-                    resource_type = $member.target_type
-                    resource_id = $member.target_id
-                    resource_display_name =  $member.target_display_name
-                }
-                $returnmembers += $returnmember
-            }
-            $returnarray = New-Object PsObject -Property @{
-            resource_display_name = $response.display_name
-            resource_type = $response.resource_type
-            resource_id = $response.id 
-            resource_members = $returnmembers     
-            }
-        }
-        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Remove-NsxTNSServiceGroup{
@@ -1903,15 +1668,15 @@ function Remove-NsxTNSServiceGroup{
 
         if ($NSServiceGroupObject) {
             if ($NSServiceGroupObject.resource_type -eq "NSServiceGroup") {
-                $uri += "/$($NSServiceGroupObject.resource_id)"
+                $uri += "/$($NSServiceGroupObject.id)"
             } else {
-                ThrowError -ExceptionMessage "Input object is not from resource_type: NSServiceGroup"
+                Throw -ExceptionMessage "Input object is not from resource_type: NSServiceGroup"
             }
         }
 
         if ( $Confirm ) {
             $message  = "NSX-T NSServiceGroup object removal is permanent."
-            $question = "Proceed with removal of NSX-T NSServiceGroup OBJECT $($NSServiceGroupObject.resource_display_name)?"
+            $question = "Proceed with removal of NSX-T NSServiceGroup OBJECT $($NSServiceGroupObject.display_name)?"
 
             $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
             $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
@@ -1923,9 +1688,9 @@ function Remove-NsxTNSServiceGroup{
         if ($decision -eq 0) {
 
             try {
-                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceGroupObject.resource_display_name)"
+                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceGroupObject.display_name)"
                 $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
-                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceGroupObject.resource_display_name)" -completed
+                Write-Progress -activity "Remove NSX-T NSService Object $($NSServiceGroupObject.display_name)" -completed
             }
             catch {
                 throw "Unable to query from $($connection.Hostname)."
@@ -1960,7 +1725,7 @@ function New-NsxTNSServiceGroup{
         #build JSON body for REST request
         $body = '{ "display_name" : "'+$Displayname+'", "members":['
             foreach ($NSServiceObject in $NSServiceObjects) {
-                $body += '{"target_id": "'+$NSServiceObject.resource_id+'", "target_type": "NSService"},'
+                $body += '{"target_id": "'+$NSServiceObject.id+'", "target_type": "NSService"},'
             }
         $body = $body.trimend(',') + "]}"
         
@@ -1974,16 +1739,10 @@ function New-NsxTNSServiceGroup{
         }
         
         #Create response for return value
-        $NSServiceGroupObject = New-Object PsObject -Property @{
-            resource_display_name = $response.display_name
-            resource_type = $response.resource_type
-            resource_id = $response.id    
-        }
-        
-        $returnarray = Get-NsxTNSServiceGroup -NSServiceGroupObject $NSServiceGroupObject
+        if ($response.results) {$return = $response.results} else {$return = $response}
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Add-NsxTNSServiceGroupMember{
@@ -2012,9 +1771,9 @@ function Add-NsxTNSServiceGroupMember{
         # AD resource id to uri
         if ($NSServiceGroupObject) {
             if ($NSServiceGroupObject.resource_type -eq "NSServiceGroup") {
-                $uri += "/$($NSServiceGroupObject.resource_id)"
+                $uri += "/$($NSServiceGroupObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: NSGroup"
+                Throw "Input object is not from resource_type: NSGroup"
             }
         }
 
@@ -2029,8 +1788,8 @@ function Add-NsxTNSServiceGroupMember{
         $NSServiceGroupMemberObjects = $response.members
         foreach ($NSServiceObject in $NSServiceObjects) {
             $NSServiceGroupMemberObject = New-Object PsObject -Property @{
-                target_display_name = $NSServiceObject.resource_display_name
-                target_id = $NSServiceObject.resource_id
+                target_display_name = $NSServiceObject.display_name
+                target_id = $NSServiceObject.id
                 target_type = $NSServiceObject.resource_type
                 is_valid = "True"  
             }
@@ -2054,11 +1813,10 @@ function Add-NsxTNSServiceGroupMember{
             throw "Unable to query from $($connection.Hostname)."
         }
         
-        $response = Get-NsxTNSServiceGroup -NSServiceGroupObject $NSServiceGroupObject
-        
+        if ($response.results) {$return = $response.results} else {$return = $response}    
     }
     
-    end{$response}
+    end{$return}
 }
 
 function Remove-NsxTNSServiceGroupMember{
@@ -2087,9 +1845,9 @@ function Remove-NsxTNSServiceGroupMember{
         # AD resource id to uri
         if ($NSServiceGroupObject) {
             if ($NSServiceGroupObject.resource_type -eq "NSServiceGroup") {
-                $uri += "/$($NSServiceGroupObject.resource_id)"
+                $uri += "/$($NSServiceGroupObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: NSGroup"
+                Throw "Input object is not from resource_type: NSGroup"
             }
         }
 
@@ -2101,10 +1859,10 @@ function Remove-NsxTNSServiceGroupMember{
             throw "Unable to query from $($connection.Hostname)."
         }
         
-        $NSServiceGroupMemberObjects = [System.Collections.ArrayList]$response.members.removeat(0)
+        $NSServiceGroupMemberObjects = [System.Collections.ArrayList]$response.members
         foreach ($NSServiceObject in $NSServiceObjects) {
             foreach ($key in 0 .. $NSServiceGroupMemberObjects.count) {
-                if ($NSServiceGroupMemberObjects[$key].target_id -match $NSServiceObject.resource_id) {$NSServiceGroupMemberObjects.removeat($key)}
+                if ($NSServiceGroupMemberObjects[$key].target_id -match $NSServiceObject.id) {$NSServiceGroupMemberObjects.removeat($key)}
             }
         }
         
@@ -2125,11 +1883,11 @@ function Remove-NsxTNSServiceGroupMember{
             throw "Unable to query from $($connection.Hostname)."
         }
         
-        $response = Get-NsxTNSServiceGroup -NSServiceGroupObject $NSServiceGroupObject
+        if ($response.results) {$return = $response.results} else {$return = $response}
         
     }
     
-    end{$response}
+    end{$return}
 }
 
 function Get-NsxTTransportZone{
@@ -2156,9 +1914,9 @@ function Get-NsxTTransportZone{
 
         if ($TransportZoneObject) {
             if ($TransportZoneObject.resource_type -eq "TransportZone") {
-                $uri += "/$($TransportZoneObject.resource_id)"
+                $uri += "/$($TransportZoneObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: TransportZone"
+                Throw "Input object is not from resource_type: TransportZone"
             }
         }
 
@@ -2169,33 +1927,12 @@ function Get-NsxTTransportZone{
             throw "Unable to query from $($connection.Hostname)."
         }
        
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id
-                    resource_transport_type = $resource.transport_type
-                    resource_host_switch_name = $resource.host_switch_name
-                    resource_description = $resource.description                   
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_type = $response.resource_type
-                resource_id = $response.id
-                resource_transport_type = $response.transport_type
-                resource_host_switch_name = $response.host_switch_name
-                resource_description = $response.description
-            }
-        }
-        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
+
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function New-NsxTTransportZone{
@@ -2242,17 +1979,11 @@ function New-NsxTTransportZone{
         }
         
         #Create response for return value
-        $returnarray = New-Object PsObject -Property @{
-            resource_display_name = $response.display_name
-            resource_type = $response.resource_type
-            resource_id = $response.id
-            resource_transport_type = $response.transport_type
-            resource_host_switch_name = $response.host_switch_name
-            resource_description = $response.description
-        }
+        if ($response.results) {$return = $response.results} else {$return = $response}
+
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Remove-NsxTTransportZone{
@@ -2278,15 +2009,15 @@ function Remove-NsxTTransportZone{
 
         if ($TransportZoneObject) {
             if ($TransportZoneObject.resource_type -eq "TransportZone") {
-                $uri += "/$($TransportZoneObject.resource_id)"
+                $uri += "/$($TransportZoneObject.id)"
             } else {
-                ThrowError "Input object is not from resource_type: TransportZone"
+                Throw "Input object is not from resource_type: TransportZone"
             }
         }
 
         if ( $Confirm ) {
             $message  = "NSX-T TransportZone object removal is permanent."
-            $question = "Proceed with removal of NSX-T TransportZone OBJECT $($TransportZoneObject.resource_display_name)?"
+            $question = "Proceed with removal of NSX-T TransportZone OBJECT $($TransportZoneObject.display_name)?"
 
             $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
             $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
@@ -2298,9 +2029,9 @@ function Remove-NsxTTransportZone{
         if ($decision -eq 0) {
 
             try {
-                Write-Progress -activity "Remove NSX-T NSService Object $($TransportZoneObject.resource_display_name)"
+                Write-Progress -activity "Remove NSX-T NSService Object $($TransportZoneObject.display_name)"
                 $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
-                Write-Progress -activity "Remove NSX-T NSService Object $($TransportZoneObject.resource_display_name)" -completed
+                Write-Progress -activity "Remove NSX-T NSService Object $($TransportZoneObject.display_name)" -completed
             }
             catch {
                 throw "Unable to query from $($connection.Hostname)."
@@ -2335,9 +2066,9 @@ function Get-NsxTLogicalSwitch{
 
         if ($NSLogicalSwitch) {
             if ($NSLogicalSwitch.resource_type -eq "LogicalSwitch") {
-                $uri += "/$($NSLogicalSwitch.resource_id)"
+                $uri += "/$($NSLogicalSwitch.id)"
             } else {
-                ThrowError "Input object is not from resource_type: LogicalSwitch"
+                Throw "Input object is not from resource_type: LogicalSwitch"
             }
         }
 
@@ -2348,27 +2079,10 @@ function Get-NsxTLogicalSwitch{
             throw "Unable to query from $($connection.Hostname)."
         }
        
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
-        }
-        if ($Displayname) {$returnarray = $returnarray | ? {$_.resource_display_name -like $Displayname}}
-    }
-    
-    end{$returnarray}
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
+    }    
+    end{$return}
 }
 
 function New-NsxTLogicalSwitch{
@@ -2398,7 +2112,7 @@ function New-NsxTLogicalSwitch{
         [Parameter ( Mandatory=$true,ParameterSetName="VlanRange")]
             [ValidateNotNullOrEmpty()]
             [string]$VlanRangeEnd,
-        [Parameter (Mandatory=$False)]
+        [Parameter (Mandatory=$False,ParameterSetName="__AllParameterSets")]
             #PowerNSXT Connection object.
             [ValidateNotNullOrEmpty()]
             [PSCustomObject]$Connection=$defaultNSXTConnection
@@ -2410,9 +2124,16 @@ function New-NsxTLogicalSwitch{
 
         $uri = "/api/v1/logical-switches"
        
+        if ($TransportZoneObject) {
+            if ($TransportZoneObject.resource_type -eq "TransportZone") {
+            } else {
+                Throw "Input object is not from resource_type: TransportZone"
+            }
+        }
+
        #build JSON body for REST request
        $bodyPSobject = New-Object PsObject -Property @{
-            transport_zone_id = $TransportZoneObject.resource_id
+            transport_zone_id = $TransportZoneObject.id
             replication_mode = $ReplicationMode
             admin_state = "UP"
             display_name = $Displayname
@@ -2445,29 +2166,10 @@ function New-NsxTLogicalSwitch{
         }
         
         #Create response for return value
-        if ($response.results) {
-            $returnarray = @()
-            foreach ($resource in $response.results) {
-                foreach ($resourceelement in $resource.nsservice_element) {
-
-                }
-                $return = New-Object PsObject -Property @{
-                    resource_display_name = $resource.display_name
-                    resource_type = $resource.resource_type
-                    resource_id = $resource.id                    
-                }
-                $returnarray += $return
-            }
-        } else {
-            $returnarray = New-Object PsObject -Property @{
-                resource_display_name = $response.display_name
-                resource_type = $response.resource_type
-                resource_id = $response.id    
-                }
-        }
+        if ($response.results) {$return = $response.results} else {$return = $response}
     }
     
-    end{$returnarray}
+    end{$return}
 }
 
 function Remove-NsxTLogicalSwitch{
@@ -2493,15 +2195,15 @@ function Remove-NsxTLogicalSwitch{
 
         if ($NSLogicalSwitch) {
             if ($NSLogicalSwitch.resource_type -eq "LogicalSwitch") {
-                $uri += "/$($NSLogicalSwitch.resource_id)"
+                $uri += "/$($NSLogicalSwitch.id)"
             } else {
-                ThrowError "Input object is not from resource_type: LogicalSwitch"
+                Throw "Input object is not from resource_type: LogicalSwitch"
             }
         }
 
         if ( $Confirm ) {
             $message  = "NSX-T TransportZone object removal is permanent."
-            $question = "Proceed with removal of NSX-T TransportZone OBJECT $($NSLogicalSwitch.resource_display_name)?"
+            $question = "Proceed with removal of NSX-T TransportZone OBJECT $($NSLogicalSwitch.display_name)?"
 
             $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
             $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
@@ -2513,9 +2215,9 @@ function Remove-NsxTLogicalSwitch{
         if ($decision -eq 0) {
 
             try {
-                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($NSLogicalSwitch.resource_display_name)"
+                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($NSLogicalSwitch.display_name)"
                 $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
-                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($NSLogicalSwitch.resource_display_name)" -completed
+                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($NSLogicalSwitch.display_name)" -completed
             }
             catch {
                 throw "Unable to query from $($connection.Hostname)."
@@ -2524,4 +2226,116 @@ function Remove-NsxTLogicalSwitch{
     }
 
     end{}
+}
+
+function Get-NsxTLogicalSwitchPort{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev Logical Switch object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSLogicalSwitchPort,        
+        [Parameter ( Mandatory=$false)]
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/logical-ports"
+
+        if ($NSLogicalSwitchPort) {
+            if ($NSLogicalSwitchPort.resource_type -eq "LogicalPort") {
+                $uri += "/$($NSLogicalSwitchPort.id)"
+            } else {
+                Throw "Input object is not from resource_type: LogicalPort"
+            }
+        }
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+       
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
+
+    }
+    
+    end{$return}
+}
+
+function New-NsxTLogicalSwitchPort{
+
+    param (
+        [Parameter (Mandatory=$true,ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [string]$Displayname,
+        [Parameter (Mandatory=$true,ValueFromPipeline=$true,ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSLogicalSwitch, 
+        [Parameter (Mandatory=$false,ParameterSetName="VIF")]
+            [ValidateSet('VIF')]
+            [String]$AttachementType,
+        [Parameter (Mandatory=$false,ParameterSetName="VIF")]
+            [ValidateNotNullOrEmpty()]
+            [String]$VifId,
+        [Parameter (Mandatory=$false,ParameterSetName="__AllParameterSets")]
+            [ValidateSet('UP','DOWN')]
+            [String]$AdminState="UP",
+        [Parameter (Mandatory=$False,ParameterSetName="__AllParameterSets")]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/logical-ports"
+
+        #build JSON body for REST request
+        $bodyPSobject = New-Object PsObject -Property @{
+            display_name = $Displayname
+            admin_state = $AdminState
+        }
+
+        if ($NSLogicalSwitch.resource_type -eq "LogicalSwitch") {
+            Add-Member -InputObject $bodyPSobject NoteProperty -Name "logical_switch_id" -Value $NSLogicalSwitch.id 
+        } else {
+            Throw "Input object is not from resource_type: LogicalSwitch"
+        }
+
+        if ($PSCmdlet.ParameterSetName -eq "VIF") {
+            $AttachementTypeBodyPSobject = New-Object PsObject -Property @{
+                attachement_type = $AttachementType
+                id = $VifId
+            }
+            Add-Member -InputObject $bodyPSobject NoteProperty -Name "attachment" -Value $AttachementTypeBodyPSobject 
+        }
+       
+        write-host ($bodyPSobject | ConvertTo-Json)
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body ($bodyPSobject | convertto-json)
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        #Create response for return value
+        if ($response.results) {$return = $response.results} else {$return = $response}
+    }
+    
+    end{$return}
 }
