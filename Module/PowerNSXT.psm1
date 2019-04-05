@@ -2322,8 +2322,6 @@ function New-NsxTLogicalSwitchPort{
             }
             Add-Member -InputObject $bodyPSobject NoteProperty -Name "attachment" -Value $AttachementTypeBodyPSobject 
         }
-       
-        write-host ($bodyPSobject | ConvertTo-Json)
 
         #Execute REST API Call
         try {
@@ -2337,5 +2335,489 @@ function New-NsxTLogicalSwitchPort{
         if ($response.results) {$return = $response.results} else {$return = $response}
     }
     
+    end{$return}
+}
+
+function Remove-NsxTLogicalSwitchport{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retriev Logical Switch object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSLogicalSwitchPort,
+        [Parameter (Mandatory=$False)]
+            [switch]$Confirm=$true,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/logical-ports"
+
+        if ($NSLogicalSwitchPort) {
+            if ($NSLogicalSwitchPort.resource_type -eq "LogicalPort") {
+                $uri += "/$($NSLogicalSwitchPort.id)"
+            } else {
+                Throw "Input object is not from resource_type: LogicalPort"
+            }
+        }
+
+        if ( $Confirm ) {
+            $message  = "NSX-T LogicalPort object removal is permanent."
+            $question = "Proceed with removal of NSX-T LogicalPort OBJECT $($NSLogicalSwitchPort.display_name)?"
+
+            $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
+
+            $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
+        }
+        else { $decision = 0 }
+        if ($decision -eq 0) {
+
+            try {
+                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($NSLogicalSwitchPort.display_name)"
+                $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
+                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($NSLogicalSwitchPort.display_name)" -completed
+            }
+            catch {
+                throw "Unable to query from $($connection.Hostname)."
+            }
+        }
+    }
+
+    end{}
+}
+
+function Get-NsxTTransportnode{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retrieve Transport Nodes object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSTransportNodes,        
+        [Parameter ( Mandatory=$false)]
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/transport-nodes"
+
+        if ($NSTransportNodes) {
+            if ($NSTransportNodes.resource_type -eq "TransportNode") {
+                $uri += "/$($NSTransportNodes.id)"
+            } else {
+                Throw "Input object is not from resource_type: TransportNode"
+            }
+        }
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+       
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
+
+    }
+    
+    end{$return}
+}
+
+function Remove-NsxTTransportNode{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retrieve Transport Nodes object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$NSTransportNodes,
+        [Parameter (Mandatory=$False)]
+            [switch]$Confirm=$true,        
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+        [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/transport-nodes"
+
+        if ($NSTransportNodes) {
+            if ($NSTransportNodes.resource_type -eq "TransportNode") {
+                $uri += "/$($NSTransportNodes.id)"
+            } else {
+                Throw "Input object is not from resource_type: TransportNode"
+            }
+        }
+
+        if ( $Confirm ) {
+            $message  = "NSX-T TransportNode object removal is permanent."
+            $question = "Proceed with removal of NSX-T TransportNode OBJECT $($NSTransportNodes.display_name)?"
+
+            $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
+
+            $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
+        }
+        else { $decision = 0 }
+        if ($decision -eq 0) {
+
+            try {
+                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($NSTransportNodes.display_name)"
+                $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
+                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($NSTransportNodes.display_name)" -completed
+            }
+            catch {
+                throw "Unable to query from $($connection.Hostname)."
+            }
+        }
+    }
+
+    end{}
+}
+
+function Get-NsxTMigrationSpec{
+
+    param (
+        #[Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+        #    #resource object to retrieve Migration Specs object from
+        #    [ValidateNotNullOrEmpty()]
+        #    [PSCustomObject]$NSMigrationSpecs,        
+        #[Parameter ( Mandatory=$false)]
+        #    [ValidateNotNullOrEmpty()]
+        #    [String]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/network-migration-specs"
+
+        #if ($NSTransportNodes) {
+        #    if ($NSTransportNodes.resource_type -eq "LogicalPort") {
+        #        $uri += "/$($NSTransportNodes.id)"
+        #  } else {
+        #       Throw "Input object is not from resource_type: LogicalPort"
+        #    }
+        #}
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+       
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        #if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
+
+    }
+    
+    end{$return}
+}
+
+function Get-NsxTEdgeCluster{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retrieve Edge Cluster object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$EdgeCluster,        
+        [Parameter ( Mandatory=$false)]
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/edge-clusters"
+
+        if ($EdgeCluster) {
+            if ($EdgeCluster.resource_type -eq "EdgeCluster")  {
+                $uri += "/$($EdgeCluster.id)"
+            }  elseif ($EdgeCluster.results.resource_type -eq "EdgeCluster") {
+                $uri += "/$($EdgeCluster.results.id)"
+            } else {
+                Throw "Input object is not from resource_type: EdgeCluster"
+            }
+        }
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+       
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
+
+    }
+    
+    end{$return}
+}
+
+function Get-NsxTEdgeClusterProfile{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retrieve Edge Cluster Profile object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$EdgeClusterProfile,        
+        [Parameter ( Mandatory=$false)]
+            [ValidateNotNullOrEmpty()]
+            [String]$Displayname,
+        [Parameter ( Mandatory=$false)]
+            [ValidateSet('BridgeHighAvailabilityClusterProfile','EdgeHighAvailabilityProfile')]
+            [String]$resourcetype,
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/cluster-profiles"
+
+        if ($EdgeClusterProfile) {
+            if ($EdgeClusterProfile.resource_type -eq "EdgeHighAvailabilityProfile")  {
+                $uri += "/$($EdgeClusterProfile.id)"
+            }  else {
+                Throw "Input object is not from resource_type: EdgeHighAvailabilityProfile"
+            }
+        }
+
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method get -uri $uri
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+       
+        if ($response.results) {$return = $response.results} else {$return = $response}
+        if ($resourcetype) {$return = ($return | ? {$_.resource_type -match $resourcetype})}
+        if ($Displayname) {$return = ($return | ? {$_.display_name -match $Displayname})}
+
+    }
+    
+    end{$return}
+}
+
+function New-NsxTEdgeClusterProfile{
+
+    param (
+        [Parameter ( Mandatory=$true,ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [string]$Displayname,
+        [Parameter ( Mandatory=$false,ParameterSetName="EdgeHighAvailabilityProfile")]
+            [ValidateNotNullOrEmpty()]
+            [switch]$EdgeHighAvailabilityProfile,
+        [Parameter ( Mandatory=$false,ParameterSetName="BridgeHighAvailabilityClusterProfile")]
+            [ValidateNotNullOrEmpty()]
+            [switch]$BridgeHighAvailabilityClusterProfile,
+        [Parameter ( Mandatory=$false,ParameterSetName="EdgeHighAvailabilityProfile")]
+            [ValidateNotNullOrEmpty()]
+            [int]$BfdProbeInterval=1000,
+        [Parameter ( Mandatory=$false,ParameterSetName="EdgeHighAvailabilityProfile")]
+            [ValidateNotNullOrEmpty()]
+            [int]$BfdDeclareDeadMultiple=3,
+        [Parameter ( Mandatory=$false,ParameterSetName="EdgeHighAvailabilityProfile")]
+            [ValidateNotNullOrEmpty()]
+            [int]$BfdAllowedHops=255,
+        [Parameter ( Mandatory=$false,ParameterSetName="EdgeHighAvailabilityProfile")]
+            [ValidateNotNullOrEmpty()]
+            [int]$StandbyRelocationThreshold=30,
+        [Parameter (Mandatory=$False,ParameterSetName="__AllParameterSets")]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/cluster-profiles"
+
+       #build JSON body for REST request
+       switch ($PSCmdlet.ParameterSetName) {
+           "EdgeHighAvailabilityProfile" {
+                $standbyrelocationconfigPSobject = New-Object PsObject -Property @{
+                    standby_relocation_threshold = $StandbyRelocationThreshold 
+                }
+                $bodyPSobject = New-Object PsObject -Property @{
+                    resource_type = "EdgeHighAvailabilityProfile"
+                    display_name = $Displayname
+                    bfd_probe_interval = $BfdProbeInterval  
+                    bfd_declare_dead_multiple= $BfdDeclareDeadMultiple
+                    bfd_allowed_hops = $BfdAllowedHops
+                    standby_relocation_config = $standbyrelocationconfigPSobject
+                }
+            }
+        }
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body ($bodyPSobject | convertto-json -Depth 5)
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        #Create response for return value
+        if ($response.results) {$return = $response.results} else {$return = $response}
+    }
+    
+    end{$return}
+}
+
+function Remove-NsxTEdgeCluster{
+
+    param (
+        [Parameter ( Mandatory=$false,ValueFromPipeline=$true)]
+            #resource object to retrieve Edge Cluster object from
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$EdgeCluster,
+        [Parameter (Mandatory=$False)]
+            [switch]$Confirm=$true,        
+        [Parameter (Mandatory=$False)]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/edge-clusters"
+
+        if ($EdgeCluster) {
+            if ($EdgeCluster.resource_type -eq "EdgeCluster")  {
+                $uri += "/$($EdgeCluster.id)"
+            }  elseif ($EdgeCluster.results.resource_type -eq "EdgeCluster") {
+                $uri += "/$($EdgeCluster.results.id)"
+            } else {
+                Throw "Input object is not from resource_type: EdgeCluster"
+            }
+        }
+        if ( $Confirm ) {
+            $message  = "NSX-T EdgeCluster object removal is permanent."
+            $question = "Proceed with removal of NSX-T EdgeCluster OBJECT $($EdgeCluster.display_name)?"
+
+            $choices = New-Object Collections.ObjectModel.Collection[Management.Automation.Host.ChoiceDescription]
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&Yes'))
+            $choices.Add((New-Object Management.Automation.Host.ChoiceDescription -ArgumentList '&No'))
+
+            $decision = $Host.UI.PromptForChoice($message, $question, $choices, 1)
+        }
+        else { $decision = 0 }
+        if ($decision -eq 0) {
+
+            try {
+                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($EdgeCluster.display_name)"
+                $response = invoke-nsxtrestmethod -connection $connection -method delete -uri $uri
+                Write-Progress -activity "Remove NSX-T LogicalSwitch Object $($EdgeCluster.display_name)" -completed
+            }
+            catch {
+                throw "Unable to query from $($connection.Hostname)."
+            }
+        }
+    }
+
+    end{}
+}
+
+function New-NsxTEdgeCluster{
+
+    param (
+        [Parameter (Mandatory=$true,ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [string]$Displayname,
+        [Parameter (Mandatory=$false,ValueFromPipeline=$true,ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$members, 
+        [Parameter (Mandatory=$true,ParameterSetName="__AllParameterSets")]
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$EdgeClusterProfile,
+        [Parameter (Mandatory=$False,ParameterSetName="__AllParameterSets")]
+            #PowerNSXT Connection object.
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject]$Connection=$defaultNSXTConnection
+    )
+
+    begin {}
+
+    process{
+
+        $uri = "/api/v1/edge-clusters"
+        if ($EdgeClusterProfile.resource_type -ne "EdgeHighAvailabilityProfile") {throw "Input object is not from resource_type: EdgeHighAvailabilityProfile"}
+        
+        #build JSON body for REST request
+        $clusterprofilebindingsPSobject = New-Object PsObject -Property @{
+            profile_id = $EdgeClusterProfile.id
+            resource_type = $EdgeClusterProfile.resource_type
+        }
+       
+        $bodyPSobject = New-Object PsObject -Property @{
+            display_name = $Displayname
+            cluster_profile_bindings = @($clusterprofilebindingsPSobject)
+        }
+
+        if ($members) {
+            $memberPSobjects = @()
+            foreach ($member in $members) {
+                $memberPSobject = New-Object PsObject -Property @{
+                    transport_node_id = $member.id
+                }
+                $memberPSobjects += $memberPSobject
+            }
+            Add-Member -InputObject $bodyPSobject NoteProperty -Name "members" -Value $memberPSobjects
+        } 
+
+        #Execute REST API Call
+        try {
+            $response = invoke-nsxtrestmethod -connection $connection -method post -uri $uri -body ($bodyPSobject | convertto-json)
+        }
+        catch {
+            throw "Unable to query from $($connection.Hostname)."
+        }
+        
+        #Create response for return value
+        if ($response.results) {$return = $response.results} else {$return = $response}
+    }
     end{$return}
 }
