@@ -1,4 +1,4 @@
-### This PowerNSXT module is written by Dennis Lefeber (Dennis-X) - ITQ
+### This PowerNSXT module is written by Dennis Lefeber (vVikingNL) - ITQ
 
 function Invoke-NsxTRestMethod {
 
